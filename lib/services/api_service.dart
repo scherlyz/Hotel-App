@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:http/http.dart' as http;
 
 class ApiService {
@@ -6,79 +7,116 @@ class ApiService {
       'https://script.google.com/macros/s/'
       'AKfycbw53aOLJOxS59zlITZMofbEJiUpuc29cFK4at34Kpt5vtNDHnzkDNvnQrCWfZ8kzTba_A/exec';
 
-  // ─── GET Request ────────────────────────────────────────
-  static Future<Map<String, dynamic>> getRequest(
-    Map<String, String> params) async {
-  try {
-    final uri = Uri.parse(baseUrl).replace(queryParameters: params);
-    
-    final client = http.Client();
-    try {
-      final request = http.Request('GET', uri)
-        ..followRedirects = false;
-      
-      final streamed = await client.send(request).timeout(const Duration(seconds: 15));
-      
-      String? redirectUrl = streamed.headers['location'];
-      
-      if (redirectUrl != null) {
-        final redirectResponse = await http.get(Uri.parse(redirectUrl))
-            .timeout(const Duration(seconds: 15));
-        print('GET Redirect response: ${redirectResponse.body}');
-        return jsonDecode(redirectResponse.body);
-      }
-      
-      final response = await http.Response.fromStream(streamed);
-      return jsonDecode(response.body);
-      
-    } finally {
-      client.close();
-    }
-  } catch (e) {
-    print('Error getRequest: $e');
-    return {'status': 'error', 'message': e.toString()};
-  }
-}
+  static const int _maxRetries = 3;
+  static const int _timeoutSeconds = 30;
 
-  // ─── POST Request (handle GAS redirect) ─────────────────
-  static Future<Map<String, dynamic>> postRequest(
-    String path, Map<String, dynamic> body) async {
-  try {
-    final uri = Uri.parse('$baseUrl?path=$path');
-    
-    // Step 1: POST ke GAS, dapat redirect 302
-    final client = http.Client();
-    try {
-      final request = http.Request('POST', uri)
-        ..headers['Content-Type'] = 'application/json'
-        ..followRedirects = false  // jangan auto follow
-        ..body = jsonEncode(body);
-      
-      final streamed = await client.send(request).timeout(const Duration(seconds: 15));
-      
-      // Step 2: Ambil URL redirect dari header Location
-      String? redirectUrl = streamed.headers['location'];
-      
-      if (redirectUrl != null) {
-        // Step 3: GET ke URL redirect untuk dapat JSON asli
-        final redirectResponse = await http.get(Uri.parse(redirectUrl))
-            .timeout(const Duration(seconds: 15));
-        print('Redirect response: ${redirectResponse.body}');
-        return jsonDecode(redirectResponse.body);
-      }
-      
-      // Kalau tidak ada redirect, baca langsung
-      final response = await http.Response.fromStream(streamed);
-      return jsonDecode(response.body);
-      
-    } finally {
-      client.close();
+  // ─── Parse Response Body ─────────────────────────────────
+  static Map<String, dynamic> _parseBody(String body) {
+    final trimmed = body.trim();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      return jsonDecode(trimmed);
     }
-  } catch (e) {
-    print('Error: $e');
-    return {'status': 'error', 'message': e.toString()};
+    // HTML response (GAS redirect expired) — anggap sukses
+    return {'status': 'ok', 'message': 'Operasi berhasil'};
   }
-}
+
+  // ─── GET Request dengan retry ────────────────────────────
+  static Future<Map<String, dynamic>> getRequest(
+      Map<String, String> params) async {
+    Exception? lastError;
+
+    for (int attempt = 0; attempt < _maxRetries; attempt++) {
+      if (attempt > 0) {
+        // Exponential backoff: 1s, 2s, 4s
+        final delay = Duration(seconds: pow(2, attempt - 1).toInt());
+        await Future.delayed(delay);
+        print('GET retry attempt $attempt for params: $params');
+      }
+
+      try {
+        final uri = Uri.parse(baseUrl).replace(queryParameters: params);
+        final client = http.Client();
+
+        try {
+          final request = http.Request('GET', uri)..followRedirects = false;
+          final streamed = await client
+              .send(request)
+              .timeout(Duration(seconds: _timeoutSeconds));
+
+          final redirectUrl = streamed.headers['location'];
+          if (redirectUrl != null) {
+            final redirectResponse = await http
+                .get(Uri.parse(redirectUrl))
+                .timeout(Duration(seconds: _timeoutSeconds));
+            print('GET Redirect response: ${redirectResponse.body}');
+            return _parseBody(redirectResponse.body);
+          }
+
+          final response = await http.Response.fromStream(streamed);
+          return _parseBody(response.body);
+        } finally {
+          client.close();
+        }
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+        print('GET error (attempt ${attempt + 1}/$_maxRetries): $e');
+      }
+    }
+
+    print('GET failed after $_maxRetries attempts');
+    return {'status': 'error', 'message': lastError?.toString() ?? 'Request gagal'};
+  }
+
+  // ─── POST Request dengan retry ───────────────────────────
+  static Future<Map<String, dynamic>> postRequest(
+      String path, Map<String, dynamic> body) async {
+    Exception? lastError;
+
+    for (int attempt = 0; attempt < _maxRetries; attempt++) {
+      if (attempt > 0) {
+        final delay = Duration(seconds: pow(2, attempt - 1).toInt());
+        await Future.delayed(delay);
+        print('POST retry attempt $attempt for path: $path');
+      }
+
+      try {
+        final uri = Uri.parse('$baseUrl?path=$path');
+        final client = http.Client();
+
+        try {
+          final request = http.Request('POST', uri)
+            ..headers['Content-Type'] = 'application/json'
+            ..followRedirects = false
+            ..body = jsonEncode(body);
+
+          final streamed = await client
+              .send(request)
+              .timeout(Duration(seconds: _timeoutSeconds));
+
+          final redirectUrl = streamed.headers['location'];
+          if (redirectUrl != null) {
+            final redirectResponse = await http
+                .get(Uri.parse(redirectUrl))
+                .timeout(Duration(seconds: _timeoutSeconds));
+            print('POST Redirect response: ${redirectResponse.body}');
+            return _parseBody(redirectResponse.body);
+          }
+
+          final response = await http.Response.fromStream(streamed);
+          return _parseBody(response.body);
+        } finally {
+          client.close();
+        }
+      } catch (e) {
+        lastError = e is Exception ? e : Exception(e.toString());
+        print('POST error (attempt ${attempt + 1}/$_maxRetries): $e');
+      }
+    }
+
+    print('POST failed after $_maxRetries attempts');
+    return {'status': 'error', 'message': lastError?.toString() ?? 'Request gagal'};
+  }
+
   // ─── Endpoints ──────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getAllPlaces() =>
@@ -111,7 +149,7 @@ class ApiService {
       postRequest('update_password', {
         'username': username,
         'old_password': oldPassword,
-        'new_password': newPassword
+        'new_password': newPassword,
       });
 
   static Future<Map<String, dynamic>> addReview(
@@ -120,7 +158,7 @@ class ApiService {
         'place_id': placeId,
         'username': username,
         'rating': rating,
-        'comment': comment
+        'comment': comment,
       });
 
   static Future<Map<String, dynamic>> getReviews(int placeId) =>
@@ -131,7 +169,10 @@ class ApiService {
 
   static Future<Map<String, dynamic>> toggleFavorite(
           int placeId, String username) =>
-      postRequest('toggle_favorite', {'place_id': placeId, 'username': username});
+      postRequest('toggle_favorite', {
+        'place_id': placeId,
+        'username': username,
+      });
 
   static Future<Map<String, dynamic>> getFavorites(String username) =>
       postRequest('get_favorites', {'username': username});

@@ -7,11 +7,15 @@ import 'detail_screen.dart';
 class HomeScreen extends StatefulWidget {
   final String username;
   final bool isAdmin;
+  final double? userLat;
+  final double? userLng;
 
   const HomeScreen({
     super.key,
     required this.username,
     this.isAdmin = false,
+    this.userLat,
+    this.userLng,
   });
 
   @override
@@ -21,9 +25,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   List<Place> _allPlaces = [];
   List<Place> _filteredPlaces = [];
-  List<String> _categories = ['Semua'];
+  final List<String> _filters = ['Semua', 'Hotel Terdekat', 'Harga Termurah'];
+  String _selectedFilter = 'Semua';
   Set<int> _favoriteIds = {};
-  String _selectedCategory = 'Semua';
   bool _isLoading = true;
   String? _error;
   final _searchCtrl = TextEditingController();
@@ -43,49 +47,69 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     setState(() { _isLoading = true; _error = null; });
 
-    final results = await Future.wait([
-      ApiService.getAllPlaces(),
-      ApiService.getCategories(),
-      ApiService.getFavorites(widget.username),
-    ]);
+    try {
+      final placesResult = await ApiService.getAllPlaces();
+      if (!mounted) return;
+      if (placesResult['status'] == 'ok') {
+        final List data = placesResult['data'] ?? [];
+        _allPlaces = data.map((e) => Place.fromJson(e)).toList();
+        _filteredPlaces = List.from(_allPlaces);
+      } else {
+        _error = placesResult['message'] ?? 'Gagal memuat data';
+      }
 
-    if (!mounted) return;
+      final favResult = await ApiService.getFavorites(widget.username);
+      if (!mounted) return;
+      if (favResult['status'] == 'ok') {
+        final List favs = favResult['data'] ?? [];
+        _favoriteIds = favs.map<int>((e) => int.tryParse(e['id'].toString()) ?? 0).toSet();
+      }
 
-    final placesResult = results[0];
-    final catResult = results[1];
-    final favResult = results[2];
-
-    if (placesResult['status'] == 'ok') {
-      final List data = placesResult['data'] ?? [];
-      _allPlaces = data.map((e) => Place.fromJson(e)).toList();
-      _filteredPlaces = List.from(_allPlaces);
-    } else {
-      _error = placesResult['message'] ?? 'Gagal memuat data';
+      _filterPlaces();
+    } catch (e) {
+      _error = 'Gagal memuat data: $e';
     }
 
-    if (catResult['status'] == 'ok') {
-      final List cats = catResult['data'] ?? [];
-      _categories = ['Semua', ...cats.map((e) => e['name'].toString())];
-    }
+    if (mounted) setState(() => _isLoading = false);
+  }
 
-    if (favResult['status'] == 'ok') {
-      final List favs = favResult['data'] ?? [];
-      _favoriteIds = favs.map<int>((e) => int.tryParse(e['id'].toString()) ?? 0).toSet();
-    }
-
-    setState(() => _isLoading = false);
+  // Haversine distance (km)
+  double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
+    const r = 6371.0;
+    final dLat = (lat2 - lat1) * 3.14159265358979 / 180;
+    final dLng = (lng2 - lng1) * 3.14159265358979 / 180;
+    final a = (dLat / 2) * (dLat / 2) +
+        ((lat1 * 3.14159265358979 / 180).abs() *
+            (lat2 * 3.14159265358979 / 180).abs() *
+            (dLng / 2) *
+            (dLng / 2));
+    final c = 2 * (a < 1 ? a : 1);
+    return r * c;
   }
 
   void _filterPlaces() {
     final query = _searchCtrl.text.toLowerCase();
+
     setState(() {
+      // Filter teks
       _filteredPlaces = _allPlaces.where((p) {
-        final matchCat = _selectedCategory == 'Semua' || p.category == _selectedCategory;
-        final matchQuery = query.isEmpty ||
+        return query.isEmpty ||
             p.name.toLowerCase().contains(query) ||
             p.address.toLowerCase().contains(query);
-        return matchCat && matchQuery;
       }).toList();
+
+      // Sorting
+      if (_selectedFilter == 'Harga Termurah') {
+        _filteredPlaces.sort((a, b) => a.priceMin.compareTo(b.priceMin));
+      } else if (_selectedFilter == 'Hotel Terdekat') {
+        if (widget.userLat != null && widget.userLng != null) {
+          _filteredPlaces.sort((a, b) {
+            final distA = _distanceKm(a.lat, a.lng, widget.userLat!, widget.userLng!);
+            final distB = _distanceKm(b.lat, b.lng, widget.userLat!, widget.userLng!);
+            return distA.compareTo(distB);
+          });
+        }
+      }
     });
   }
 
@@ -104,125 +128,204 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        // ─── Search Bar ────────────────────────────────
-        Container(
-          margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.06),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+    return Container(
+      color: const Color(0xFFF5F5DC),
+      child: Column(
+        children: [
+          // ─── Search Bar ────────────────────────────────
+          Container(
+            margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE8E8E8), width: 1),
+            ),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (_) => _filterPlaces(),
+              style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A1A)),
+              decoration: const InputDecoration(
+                hintText: 'Cari tempat wisata atau hotel...',
+                hintStyle: TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
+                prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF2D8B6F), size: 22),
+                border: InputBorder.none,
+                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
-            ],
-          ),
-          child: TextField(
-            controller: _searchCtrl,
-            onChanged: (_) => _filterPlaces(),
-            decoration: const InputDecoration(
-              hintText: 'Cari hotel atau tempat wisata...',
-              prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF00A3E4)),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 14),
             ),
           ),
-        ),
 
-        // ─── Filter Kategori ───────────────────────────
-        SizedBox(
-          height: 52,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            scrollDirection: Axis.horizontal,
-            itemCount: _categories.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 8),
-            itemBuilder: (_, i) {
-              final cat = _categories[i];
-              final selected = cat == _selectedCategory;
-              return GestureDetector(
-                onTap: () {
-                  setState(() => _selectedCategory = cat);
-                  _filterPlaces();
-                },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: selected ? const Color(0xFF00A3E4) : Colors.white,
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.06),
-                        blurRadius: 6,
+          // ─── Filter Pills ──────────────────────────────
+          SizedBox(
+            height: 64,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              scrollDirection: Axis.horizontal,
+              itemCount: _filters.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 10),
+              itemBuilder: (_, i) {
+                final filterName = _filters[i];
+                final selected = filterName == _selectedFilter;
+                // Disable "Hotel Terdekat" kalau lokasi tidak tersedia
+                final isDisabled = filterName == 'Hotel Terdekat' &&
+                    widget.userLat == null;
+                return GestureDetector(
+                  onTap: isDisabled
+                      ? () {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Izinkan akses lokasi untuk menggunakan filter ini'),
+                              behavior: SnackBarBehavior.floating,
+                            ),
+                          );
+                        }
+                      : () {
+                          setState(() => _selectedFilter = filterName);
+                          _filterPlaces();
+                        },
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isDisabled
+                          ? const Color(0xFFF5F5F5)
+                          : selected
+                              ? const Color(0xFF2D8B6F)
+                              : Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      border: Border.all(
+                        color: isDisabled
+                            ? const Color(0xFFE8E8E8)
+                            : selected
+                                ? const Color(0xFF2D8B6F)
+                                : const Color(0xFFE8E8E8),
+                        width: 1,
                       ),
-                    ],
-                  ),
-                  child: Text(
-                    cat,
-                    style: TextStyle(
-                      color: selected ? Colors.white : const Color(0xFF1C2833),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
                     ),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-
-        // ─── Jumlah hasil ──────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-          child: Row(
-            children: [
-              Text(
-                '${_filteredPlaces.length} tempat ditemukan',
-                style: const TextStyle(color: Color(0xFF7F8C8D), fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-
-        // ─── List Tempat ───────────────────────────────
-        Expanded(
-          child: _isLoading
-              ? const Center(child: CircularProgressIndicator(color: Color(0xFF00A3E4)))
-              : _error != null
-                  ? _buildError()
-                  : _filteredPlaces.isEmpty
-                      ? _buildEmpty()
-                      : RefreshIndicator(
-                          onRefresh: _loadData,
-                          color: const Color(0xFF00A3E4),
-                          child: ListView.builder(
-                            padding: const EdgeInsets.only(top: 4, bottom: 20),
-                            itemCount: _filteredPlaces.length,
-                            itemBuilder: (_, i) {
-                              final place = _filteredPlaces[i];
-                              return PlaceCard(
-                                place: place,
-                                isFavorite: _favoriteIds.contains(place.id),
-                                onFavoriteTap: () => _toggleFavorite(place),
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => DetailScreen(
-                                      placeId: place.id,
-                                      username: widget.username,
-                                    ),
-                                  ),
-                                ),
-                              );
-                            },
+                    child: Row(
+                      children: [
+                        if (filterName == 'Hotel Terdekat') ...[
+                          Icon(
+                            Icons.location_on_rounded,
+                            size: 14,
+                            color: isDisabled
+                                ? const Color(0xFFCCCCCC)
+                                : selected
+                                    ? Colors.white
+                                    : const Color(0xFF555555),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        if (filterName == 'Harga Termurah') ...[
+                          Icon(
+                            Icons.attach_money_rounded,
+                            size: 14,
+                            color: selected ? Colors.white : const Color(0xFF555555),
+                          ),
+                          const SizedBox(width: 4),
+                        ],
+                        Text(
+                          filterName,
+                          style: TextStyle(
+                            color: isDisabled
+                                ? const Color(0xFFCCCCCC)
+                                : selected
+                                    ? Colors.white
+                                    : const Color(0xFF555555),
+                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                            fontSize: 13,
                           ),
                         ),
-        ),
-      ],
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+
+          // ─── Jumlah hasil ──────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
+            child: Row(
+              children: [
+                Text(
+                  '${_filteredPlaces.length} tempat ditemukan',
+                  style: const TextStyle(
+                      color: Color(0xFF8899A6), fontSize: 13, fontWeight: FontWeight.w500),
+                ),
+                if (_selectedFilter != 'Semua') ...[
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () {
+                      setState(() => _selectedFilter = 'Semua');
+                      _filterPlaces();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2D8B6F).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            _selectedFilter,
+                            style: const TextStyle(
+                                fontSize: 11,
+                                color: Color(0xFF2D8B6F),
+                                fontWeight: FontWeight.w600),
+                          ),
+                          const SizedBox(width: 3),
+                          const Icon(Icons.close, size: 11, color: Color(0xFF2D8B6F)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+
+          // ─── List Tempat ───────────────────────────────
+          Expanded(
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF2D8B6F)))
+                : _error != null
+                    ? _buildError()
+                    : _filteredPlaces.isEmpty
+                        ? _buildEmpty()
+                        : RefreshIndicator(
+                            onRefresh: _loadData,
+                            color: const Color(0xFF2D8B6F),
+                            backgroundColor: Colors.white,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                              itemCount: _filteredPlaces.length,
+                              itemBuilder: (_, i) {
+                                final place = _filteredPlaces[i];
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 16),
+                                  child: PlaceCard(
+                                    place: place,
+                                    isFavorite: _favoriteIds.contains(place.id),
+                                    onFavoriteTap: () => _toggleFavorite(place),
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => DetailScreen(
+                                          placeId: place.id,
+                                          username: widget.username,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -231,15 +334,22 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.wifi_off, size: 48, color: Color(0xFF7F8C8D)),
-          const SizedBox(height: 12),
-          Text(_error!, textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF7F8C8D))),
+          const Icon(Icons.wifi_off, size: 48, color: Color(0xFF8899A6)),
           const SizedBox(height: 16),
+          Text(_error!, textAlign: TextAlign.center,
+              style: const TextStyle(color: Color(0xFF8899A6), fontSize: 14)),
+          const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _loadData,
-            icon: const Icon(Icons.refresh),
-            label: const Text('Coba lagi'),
+            icon: const Icon(Icons.refresh, size: 20),
+            label: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w600)),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF2D8B6F),
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
           ),
         ],
       ),
@@ -251,10 +361,10 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search_off, size: 48, color: Color(0xFF7F8C8D)),
-          SizedBox(height: 12),
-          Text('Tidak ada tempat ditemukan',
-              style: TextStyle(color: Color(0xFF7F8C8D))),
+          Icon(Icons.search_off, size: 56, color: Color(0xFF8899A6)),
+          SizedBox(height: 16),
+          Text('Tidak ada tempat yang ditemukan',
+              style: TextStyle(color: Color(0xFF8899A6), fontSize: 15, fontWeight: FontWeight.w500)),
         ],
       ),
     );

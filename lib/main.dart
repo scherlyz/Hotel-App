@@ -21,18 +21,18 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF00A3E4),
+          seedColor: const Color(0xFF2D8B6F),
           brightness: Brightness.light,
         ),
         useMaterial3: true,
         appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF00A3E4),
+          backgroundColor: Color(0xFF2D8B6F),
           foregroundColor: Colors.white,
           elevation: 0,
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF00A3E4),
+            backgroundColor: const Color(0xFF2D8B6F),
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(14),
@@ -43,7 +43,7 @@ class MyApp extends StatelessWidget {
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF00A3E4), width: 2),
+            borderSide: const BorderSide(color: Color(0xFF2D8B6F), width: 2),
           ),
         ),
       ),
@@ -70,6 +70,8 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   String _locationText = 'Mendapatkan lokasi...';
   bool _locationLoading = true;
+  double? _userLat;
+  double? _userLng;
 
   @override
   void initState() {
@@ -112,6 +114,9 @@ class _MainScreenState extends State<MainScreen> {
         locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
       );
 
+      _userLat = position.latitude;
+      _userLng = position.longitude;
+
       final placemarks = await placemarkFromCoordinates(
         position.latitude,
         position.longitude,
@@ -139,12 +144,22 @@ class _MainScreenState extends State<MainScreen> {
 
   List<Widget> get _screens => widget.isAdmin
       ? [
-          HomeScreen(username: widget.username, isAdmin: true),
+          HomeScreen(
+            username: widget.username,
+            isAdmin: true,
+            userLat: _userLat, // Pastikan HomeScreen kamu menerima ini jika dipakai
+            userLng: _userLng,
+          ),
           const AdminScreen(),
           ProfileScreen(username: widget.username),
         ]
       : [
-          HomeScreen(username: widget.username, isAdmin: false),
+          HomeScreen(
+            username: widget.username,
+            isAdmin: false,
+            userLat: _userLat,
+            userLng: _userLng,
+          ),
           ProfileScreen(username: widget.username),
         ];
 
@@ -182,148 +197,139 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F7),
+      backgroundColor: const Color(0xFFF5F5DC), // Cream beige background
       body: Column(
         children: [
-          // ─── Header ──────────────────────────────────
-          Container(
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 16,
-              left: 20,
-              right: 20,
-              bottom: 16,
-            ),
-            decoration: const BoxDecoration(
-              color: Color(0xFF00A3E4),
-              borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Kiri: Halo + Lokasi
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Halo username
-                      Row(
-                        children: [
-                          const Text(
-                            'Halo, ',
-                            style: TextStyle(
-                              color: Colors.white70,
-                              fontSize: 15,
+          // ─── Header (Hanya muncul di Tab Jelajahi / Home) ─────────────
+          if (_currentIndex == 0)
+            Container(
+              padding: EdgeInsets.only(
+                top: MediaQuery.of(context).padding.top + 16,
+                left: 20,
+                right: 20,
+                bottom: 16,
+              ),
+              decoration: const BoxDecoration(
+                color: Color(0xFF2D8B6F),
+                borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Halo username
+                        Row(
+                          children: [
+                            const Text(
+                              'Halo, ',
+                              style: TextStyle(color: Colors.white70, fontSize: 15),
                             ),
-                          ),
-                          Text(
-                            widget.username,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
+                            Text(
+                              widget.username,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold),
                             ),
-                          ),
-                          if (widget.isAdmin) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: Colors.amber,
-                                borderRadius: BorderRadius.circular(8),
+                            if (widget.isAdmin) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 7, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Text('Admin',
+                                    style: TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.black87)),
                               ),
-                              child: const Text(
-                                'Admin',
-                                style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87),
-                              ),
+                            ],
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        // Lokasi
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_rounded,
+                                color: Colors.white, size: 15),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: _locationLoading
+                                  ? const Row(
+                                      children: [
+                                        SizedBox(
+                                          width: 12,
+                                          height: 12,
+                                          child: CircularProgressIndicator(
+                                              color: Colors.white70,
+                                              strokeWidth: 2),
+                                        ),
+                                        SizedBox(width: 6),
+                                        Text('Mendapatkan lokasi...',
+                                            style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 13)),
+                                      ],
+                                    )
+                                  : Text(
+                                      _locationText,
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w500),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
                             ),
                           ],
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      // Lokasi
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_rounded,
-                              color: Colors.white, size: 15),
-                          const SizedBox(width: 4),
-                          Expanded(
-                            child: _locationLoading
-                                ? Row(
-                                    children: [
-                                      const SizedBox(
-                                        width: 12,
-                                        height: 12,
-                                        child: CircularProgressIndicator(
-                                            color: Colors.white70, strokeWidth: 2),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      const Text('Mendapatkan lokasi...',
-                                          style: TextStyle(
-                                              color: Colors.white70, fontSize: 13)),
-                                    ],
-                                  )
-                                : Text(
-                                    _locationText,
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 13,
-                                        fontWeight: FontWeight.w500),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
 
-                // Kanan: Tombol Favorit
-                GestureDetector(
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => FavoritesScreen(username: widget.username),
+                  // Tombol Favorit
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FavoritesScreen(username: widget.username),
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.favorite_rounded,
+                          color: Colors.white, size: 22),
                     ),
                   ),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.favorite_rounded,
-                      color: Colors.white,
-                      size: 22,
-                    ),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // ─── Body ─────────────────────────────────────
+          // ─── Body Content ─────────────────────────────────────────────
           Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: _screens,
-            ),
+            child: _screens[_currentIndex],
           ),
         ],
       ),
 
-      // ─── Bottom Nav ───────────────────────────────────
+      // ─── Bottom Nav ───────────────────────────────────────────────────
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
           setState(() => _currentIndex = index);
         },
         backgroundColor: Colors.white,
-        indicatorColor: const Color(0xFF00A3E4).withValues(alpha: 0.15),
+        indicatorColor: const Color(0xFF2D8B6F).withValues(alpha: 0.15),
         destinations: _destinations,
       ),
     );

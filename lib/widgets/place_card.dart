@@ -20,14 +20,14 @@ class PlaceCard extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16), // Disesuaikan dengan radius card lain
+          border: Border.all(color: const Color(0xFFE8E8E8)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 15,
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 12,
               offset: const Offset(0, 4),
             ),
           ],
@@ -39,12 +39,11 @@ class PlaceCard extends StatelessWidget {
             Stack(
               children: [
                 ClipRRect(
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(20)),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
                   child: place.photoUrl.isNotEmpty
                       ? Image.network(
                           place.photoUrl,
-                          height: 170,
+                          height: 160,
                           width: double.infinity,
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => _placeholderImage(),
@@ -53,17 +52,16 @@ class PlaceCard extends StatelessWidget {
                 ),
                 // Badge kategori
                 Positioned(
-                  top: 14,
-                  left: 14,
+                  top: 12,
+                  left: 12,
                   child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
                       color: _categoryColor(place.category),
                       borderRadius: BorderRadius.circular(20),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
+                          color: Colors.black.withValues(alpha: 0.15),
                           blurRadius: 4,
                           offset: const Offset(0, 2),
                         )
@@ -72,10 +70,11 @@ class PlaceCard extends StatelessWidget {
                     child: Text(
                       place.category.isEmpty ? 'Lainnya' : place.category,
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          letterSpacing: 0.5,
-                          fontWeight: FontWeight.bold),
+                        color: Colors.white,
+                        fontSize: 11,
+                        letterSpacing: 0.5,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -100,8 +99,8 @@ class PlaceCard extends StatelessWidget {
                           ],
                         ),
                         child: Icon(
-                          isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: isFavorite ? const Color(0xFFFF4B4B) : const Color(0xFF9E9E9E),
+                          isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                          color: isFavorite ? const Color(0xFFDC2626) : const Color(0xFFAAAAAA), // Soft red / muted grey
                           size: 20,
                         ),
                       ),
@@ -123,8 +122,8 @@ class PlaceCard extends StatelessWidget {
                           place.name,
                           style: const TextStyle(
                             fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1C2833), // Dark Slate
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A1A1A), // Dark text
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -135,7 +134,7 @@ class PlaceCard extends StatelessWidget {
                         ...List.generate(
                           place.stars.clamp(0, 5),
                           (_) => const Icon(Icons.star_rounded,
-                              size: 14, color: Color(0xFFFFC107)), // Bright Yellow
+                              size: 14, color: Color(0xFFD4AF37)), // Warm gold
                         ),
                       ]
                     ],
@@ -146,35 +145,33 @@ class PlaceCard extends StatelessWidget {
                     Row(
                       children: [
                         const Icon(Icons.location_on_rounded,
-                            size: 14, color: Color(0xFF00A3E4)), // Traveloka Blue
+                            size: 14, color: Color(0xFF8899A6)), // Muted icon
                         const SizedBox(width: 4),
                         Expanded(
                           child: Text(
                             place.address,
                             style: const TextStyle(
-                                fontSize: 13, color: Color(0xFF7F8C8D)),
+                                fontSize: 13, color: Color(0xFF8899A6)),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
                     ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
 
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF4F9FF), // Very light blue
+                          color: const Color(0xFF2D8B6F).withValues(alpha: 0.1), // Light green tint
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFD6EAF8)),
                         ),
                         child: Row(
                           children: [
                             const Icon(Icons.star_rounded,
-                                size: 16, color: Color(0xFFFFC107)),
+                                size: 16, color: Color(0xFFD4AF37)), // Warm gold
                             const SizedBox(width: 4),
                             Text(
                               place.rating > 0
@@ -182,8 +179,8 @@ class PlaceCard extends StatelessWidget {
                                   : 'Baru',
                               style: const TextStyle(
                                 fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF2980B9), // Darker blue text
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF2D8B6F), // Deep green text
                               ),
                             ),
                           ],
@@ -195,7 +192,7 @@ class PlaceCard extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
-                          color: Color(0xFFFF5E1F), // Bright Orange (Traveloka style)
+                          color: Color(0xFF2D8B6F), // Deep green for emphasis
                         ),
                       ),
                     ],
@@ -211,25 +208,26 @@ class PlaceCard extends StatelessWidget {
 
   Widget _placeholderImage() {
     return Container(
-      height: 170,
+      height: 160,
       width: double.infinity,
-      color: const Color(0xFFF2F4F7),
-      child: const Icon(Icons.image_outlined, size: 48, color: Color(0xFFBDC3C7)),
+      color: const Color(0xFFF5F5DC), // Cream beige placeholder
+      child: const Icon(Icons.image_outlined, size: 48, color: Color(0xFFAAAAAA)),
     );
   }
 
   Color _categoryColor(String category) {
+    // Palet warna earth-tone sesuai kategori
     switch (category.toLowerCase()) {
       case 'hotel':
-        return const Color(0xFF00A3E4); // Primary Blue
+        return const Color(0xFF2D8B6F); // Deep Green
       case 'wisata':
-        return const Color(0xFF2ECC71); // Fresh Green
+        return const Color(0xFFD4AF37); // Warm Gold / Mustard
       case 'restoran':
-        return const Color(0xFFFF5E1F); // Orange
+        return const Color(0xFFC05640); // Terracotta / Soft Red-Orange
       case 'cafe':
-        return const Color(0xFF9B59B6); // Purple
+        return const Color(0xFF8B7355); // Warm Mocha Brown
       default:
-        return const Color(0xFF34495E); // Navy Slate
+        return const Color(0xFF8899A6); // Muted Grey-Blue
     }
   }
 }

@@ -81,29 +81,29 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   Future<void> _openGoogleMapsRoute() async {
-  final dest = '${widget.place.lat},${widget.place.lng}';
-  String url;
+    final dest = '${widget.place.lat},${widget.place.lng}';
+    String url;
 
-  if (_userPosition != null) {
-    final origin = '${_userPosition!.latitude},${_userPosition!.longitude}';
-    url = 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$dest&travelmode=driving';
-  } else {
-    url = 'https://www.google.com/maps/dir/?api=1&destination=$dest&travelmode=driving';
-  }
+    if (_userPosition != null) {
+      final origin = '${_userPosition!.latitude},${_userPosition!.longitude}';
+      url = 'https://www.google.com/maps/dir/?api=1&origin=$origin&destination=$dest&travelmode=driving';
+    } else {
+      url = 'https://www.google.com/maps/dir/?api=1&destination=$dest&travelmode=driving';
+    }
 
-  try {
-    await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.externalApplication,
-    );
-  } catch (e) {
-    // Fallback buka di browser
-    await launchUrl(
-      Uri.parse(url),
-      mode: LaunchMode.platformDefault,
-    );
+    try {
+      await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (e) {
+      // Fallback buka di browser
+      await launchUrl(
+        Uri.parse(url),
+        mode: LaunchMode.platformDefault,
+      );
+    }
   }
-}
 
   void _centerToPlace() {
     _mapController.move(
@@ -126,21 +126,24 @@ class _MapScreenState extends State<MapScreen> {
     final placeLatLng = LatLng(widget.place.lat, widget.place.lng);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF5F5DC), // Cream beige background
       appBar: AppBar(
-        title: Text(widget.place.name),
-        backgroundColor: const Color(0xFF1565C0),
-        foregroundColor: Colors.white,
+        title: Text(widget.place.name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
+        backgroundColor: const Color(0xFFF5F5DC),
+        foregroundColor: const Color(0xFF1A1A1A),
+        elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.my_location),
+            icon: const Icon(Icons.my_location_rounded, color: Color(0xFF2D8B6F)),
             onPressed: _loadingLocation ? null : _centerToUser,
             tooltip: 'Lokasi saya',
           ),
           IconButton(
-            icon: const Icon(Icons.place),
+            icon: const Icon(Icons.place_rounded, color: Color(0xFFDC2626)),
             onPressed: _centerToPlace,
             tooltip: 'Lokasi tempat',
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Stack(
@@ -166,12 +169,21 @@ class _MapScreenState extends State<MapScreen> {
                     Marker(
                       point: LatLng(
                           _userPosition!.latitude, _userPosition!.longitude),
-                      width: 40,
-                      height: 40,
-                      child: const Icon(
-                        Icons.person_pin_circle,
-                        color: Colors.blue,
-                        size: 40,
+                      width: 44,
+                      height: 44,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 6, offset: const Offset(0, 2))
+                          ]
+                        ),
+                        child: const Icon(
+                          Icons.person_pin_circle_rounded,
+                          color: Color(0xFF2D8B6F), // Deep green
+                          size: 36,
+                        ),
                       ),
                     ),
                   ],
@@ -186,7 +198,7 @@ class _MapScreenState extends State<MapScreen> {
                     height: 50,
                     child: const Icon(
                       Icons.location_pin,
-                      color: Colors.red,
+                      color: Color(0xFFDC2626), // Soft red
                       size: 50,
                     ),
                   ),
@@ -198,33 +210,34 @@ class _MapScreenState extends State<MapScreen> {
           // ─── Info card tempat ──────────────────────
           Positioned(
             bottom: 100,
-            left: 16,
-            right: 16,
+            left: 20,
+            right: 20,
             child: Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFFE8E8E8)),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 16,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
               child: Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1565C0).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
+                      color: const Color(0xFF2D8B6F).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: const Icon(Icons.hotel,
-                        color: Color(0xFF1565C0), size: 24),
+                    child: const Icon(Icons.location_city_rounded,
+                        color: Color(0xFF2D8B6F), size: 24),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -232,14 +245,15 @@ class _MapScreenState extends State<MapScreen> {
                         Text(
                           widget.place.name,
                           style: const TextStyle(
-                              fontWeight: FontWeight.w700, fontSize: 14),
+                              fontWeight: FontWeight.w700, fontSize: 15, color: Color(0xFF1A1A1A)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                        const SizedBox(height: 4),
                         Text(
                           widget.place.address,
                           style: const TextStyle(
-                              color: Colors.grey, fontSize: 12),
+                              color: Color(0xFF8899A6), fontSize: 13),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -254,26 +268,29 @@ class _MapScreenState extends State<MapScreen> {
           // ─── Error lokasi ──────────────────────────
           if (_locationError != null)
             Positioned(
-              top: 12,
-              left: 16,
-              right: 16,
+              top: 16,
+              left: 20,
+              right: 20,
               child: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: Colors.orange[50],
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.orange),
+                  color: const Color(0xFFFEF2F2),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFECACA)),
+                  boxShadow: [
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 4)),
+                  ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.warning_amber,
-                        color: Colors.orange, size: 18),
-                    const SizedBox(width: 8),
+                    const Icon(Icons.warning_amber_rounded,
+                        color: Color(0xFFDC2626), size: 20),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _locationError!,
                         style: const TextStyle(
-                            fontSize: 12, color: Colors.orange),
+                            fontSize: 13, color: Color(0xFFDC2626), fontWeight: FontWeight.w500),
                       ),
                     ),
                   ],
@@ -284,31 +301,29 @@ class _MapScreenState extends State<MapScreen> {
           // ─── Loading lokasi ────────────────────────
           if (_loadingLocation)
             Positioned(
-              top: 12,
-              left: 16,
-              right: 16,
+              top: 16,
+              left: 20,
+              right: 20,
               child: Container(
-                padding: const EdgeInsets.all(10),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE8E8E8)),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.1),
-                      blurRadius: 6,
-                    )
+                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 8, offset: const Offset(0, 4)),
                   ],
                 ),
                 child: const Row(
                   children: [
                     SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(color: Color(0xFF2D8B6F), strokeWidth: 2.5),
                     ),
-                    SizedBox(width: 10),
+                    SizedBox(width: 12),
                     Text('Mendapatkan lokasi kamu...',
-                        style: TextStyle(fontSize: 12)),
+                        style: TextStyle(fontSize: 13, color: Color(0xFF555555), fontWeight: FontWeight.w500)),
                   ],
                 ),
               ),
@@ -319,11 +334,12 @@ class _MapScreenState extends State<MapScreen> {
       // ─── Tombol Buka Rute ──────────────────────────
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openGoogleMapsRoute,
-        backgroundColor: const Color(0xFF1565C0),
-        icon: const Icon(Icons.directions, color: Colors.white),
+        backgroundColor: const Color(0xFF2D8B6F),
+        elevation: 0,
+        icon: const Icon(Icons.directions_rounded, color: Colors.white, size: 22),
         label: const Text(
           'Buka Rute',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15),
         ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
