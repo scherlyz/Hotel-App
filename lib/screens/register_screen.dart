@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_colors.dart';
+import '../core/widgets/app_text_field.dart';
+import '../core/widgets/app_button.dart';
+import '../core/widgets/app_state_widgets.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 
@@ -44,10 +48,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
       final result = await ApiService.register(username, password);
@@ -57,7 +58,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Registrasi berhasil! Silakan login.'),
-            backgroundColor: const Color(0xFF2D8B6F), // Deep green snackbar
+            backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -80,250 +81,140 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  Widget _buildCustomTextField({
-    required TextEditingController controller,
-    required String hintText,
-    required IconData icon,
-    bool obscure = false,
-    VoidCallback? onToggleObscure,
-    TextInputAction action = TextInputAction.next,
-    VoidCallback? onSubmit,
-  }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: const Color(0xFFE8E8E8),
-          width: 1,
-        ),
-      ),
-      child: TextField(
-        controller: controller,
-        obscureText: obscure,
-        textInputAction: action,
-        onSubmitted: onSubmit != null ? (_) => onSubmit() : null,
-        style: const TextStyle(
-          fontSize: 15,
-          color: Color(0xFF1A1A1A),
-        ),
-        decoration: InputDecoration(
-          hintText: hintText,
-          hintStyle: const TextStyle(
-            color: Color(0xFFAAAAAA),
-            fontSize: 14,
-          ),
-          prefixIcon: Icon(
-            icon,
-            color: const Color(0xFF2D8B6F), // Deep green icon
-            size: 20,
-          ),
-          suffixIcon: onToggleObscure != null
-              ? IconButton(
-                  icon: Icon(
-                    obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                    color: const Color(0xFFAAAAAA),
-                    size: 20,
-                  ),
-                  onPressed: onToggleObscure,
-                )
-              : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 16,
-            vertical: 18,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Column(
+            children: [
+              const SizedBox(height: 40),
+              _AppLogo(icon: Icons.person_add_rounded),
+              const SizedBox(height: 28),
+              const _AuthHeader(
+                title: 'Buat Akun Baru',
+                subtitle: 'Bergabung dan mulai temukan tempat terbaik untuk perjalananmu',
+              ),
+              const SizedBox(height: 36),
+
+              AppTextField(
+                controller: _usernameCtrl,
+                hint: 'Username',
+                prefixIcon: Icons.person_outline,
+              ),
+              const SizedBox(height: 16),
+
+              AppTextField(
+                controller: _passwordCtrl,
+                hint: 'Password',
+                prefixIcon: Icons.lock_outline,
+                obscureText: _obscurePassword,
+                suffixIcon: _TogglePasswordButton(
+                  obscure: _obscurePassword,
+                  onToggle: () => setState(() => _obscurePassword = !_obscurePassword),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              AppTextField(
+                controller: _confirmCtrl,
+                hint: 'Konfirmasi Password',
+                prefixIcon: Icons.lock_outline,
+                obscureText: _obscureConfirm,
+                textInputAction: TextInputAction.done,
+                onSubmit: _register,
+                suffixIcon: _TogglePasswordButton(
+                  obscure: _obscureConfirm,
+                  onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              if (_errorMessage != null) ...[
+                ErrorBanner(message: _errorMessage!),
+                const SizedBox(height: 20),
+              ],
+
+              AppButton(label: 'Daftar Sekarang', onPressed: _register, isLoading: _isLoading),
+              const SizedBox(height: 24),
+
+              _AuthFooter(
+                message: 'Sudah punya akun? ',
+                actionLabel: 'Masuk',
+                onTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoginScreen()),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
           ),
         ),
       ),
     );
   }
+}
 
+// Reuse widgets dari login_screen.dart
+class _AppLogo extends StatelessWidget {
+  final IconData icon;
+  const _AppLogo({required this.icon});
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF5F5DC), // Cream beige background
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Column(
-              children: [
-                const SizedBox(height: 40),
-
-                // ─── Logo / Icon ────────────────────────────────
-                Container(
-                  width: 72,
-                  height: 72,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2D8B6F), // Deep green
-                    borderRadius: BorderRadius.circular(20),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF2D8B6F).withValues(alpha: 0.3),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(
-                    Icons.person_add_rounded,
-                    size: 36,
-                    color: Colors.white,
-                  ),
-                ),
-                const SizedBox(height: 28),
-
-                // ─── Title ──────────────────────────────────────
-                const Text(
-                  'Buat Akun Baru',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1A1A1A),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Bergabung dan mulai temukan tempat terbaik untuk perjalananmu',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF8899A6),
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 36),
-
-                // ─── Form Fields ─────────────────────────────────
-                _buildCustomTextField(
-                  controller: _usernameCtrl,
-                  hintText: 'Username',
-                  icon: Icons.person_outline,
-                ),
-                const SizedBox(height: 16),
-
-                _buildCustomTextField(
-                  controller: _passwordCtrl,
-                  hintText: 'Password',
-                  icon: Icons.lock_outline,
-                  obscure: _obscurePassword,
-                  onToggleObscure: () => setState(() => _obscurePassword = !_obscurePassword),
-                ),
-                const SizedBox(height: 16),
-
-                _buildCustomTextField(
-                  controller: _confirmCtrl,
-                  hintText: 'Konfirmasi Password',
-                  icon: Icons.lock_outline,
-                  obscure: _obscureConfirm,
-                  onToggleObscure: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                  action: TextInputAction.done,
-                  onSubmit: _register,
-                ),
-                const SizedBox(height: 24),
-
-                // ─── Error Message ──────────────────────────────
-                if (_errorMessage != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF2F2),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: const Color(0xFFFECACA),
-                        width: 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Color(0xFFDC2626),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFFDC2626),
-                              fontSize: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-
-                // ─── Register Button ─────────────────────────────
-                SizedBox(
-                  height: 52,
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _register,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D8B6F), // Deep green button
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                    ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2.5,
-                            ),
-                          )
-                        : const Text(
-                            'Daftar Sekarang',
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // ─── Login Link ──────────────────────────────────
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text(
-                      'Sudah punya akun? ',
-                      style: TextStyle(
-                        color: Color(0xFF888888),
-                        fontSize: 14,
-                      ),
-                    ),
-                    GestureDetector(
-                      onTap: () => Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      ),
-                      child: const Text(
-                        'Masuk',
-                        style: TextStyle(
-                          color: Color(0xFF2D8B6F),
-                          fontWeight: FontWeight.w700,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          ),
-        ),
+    return Container(
+      width: 72, height: 72,
+      decoration: BoxDecoration(
+        color: AppColors.primary,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [BoxShadow(color: AppColors.primary.withValues(alpha: 0.3), blurRadius: 20, offset: const Offset(0, 8))],
       ),
+      child: Icon(icon, size: 36, color: Colors.white),
     );
+  }
+}
+
+class _AuthHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  const _AuthHeader({required this.title, required this.subtitle});
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      Text(title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+      const SizedBox(height: 8),
+      Text(subtitle, textAlign: TextAlign.center, style: const TextStyle(fontSize: 14, color: AppColors.textMuted, height: 1.5)),
+    ]);
+  }
+}
+
+class _TogglePasswordButton extends StatelessWidget {
+  final bool obscure;
+  final VoidCallback onToggle;
+  const _TogglePasswordButton({required this.obscure, required this.onToggle});
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(obscure ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: AppColors.textHint, size: 20),
+      onPressed: onToggle,
+    );
+  }
+}
+
+class _AuthFooter extends StatelessWidget {
+  final String message;
+  final String actionLabel;
+  final VoidCallback onTap;
+  const _AuthFooter({required this.message, required this.actionLabel, required this.onTap});
+  @override
+  Widget build(BuildContext context) {
+    return Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      Text(message, style: const TextStyle(color: Color(0xFF888888), fontSize: 14)),
+      GestureDetector(
+        onTap: onTap,
+        child: Text(actionLabel, style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 14)),
+      ),
+    ]);
   }
 }

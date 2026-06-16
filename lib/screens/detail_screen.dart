@@ -3,6 +3,7 @@ import 'map_screen.dart';
 import '../models/place.dart';
 import '../models/review.dart';
 import '../services/api_service.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class DetailScreen extends StatefulWidget {
   final int placeId;
@@ -74,6 +75,7 @@ class _DetailScreenState extends State<DetailScreen> {
   Future<void> _toggleFavorite() async {
     final result =
         await ApiService.toggleFavorite(widget.placeId, widget.username);
+        print('toggleFavorite result: $result');
     if (!mounted) return;
     if (result['status'] == 'ok') {
       setState(() => _isFavorite = result['favorited'] == true);
@@ -281,13 +283,13 @@ class _DetailScreenState extends State<DetailScreen> {
                 fit: StackFit.expand,
                 children: [
                   place.photoUrl.isNotEmpty
-                      ? Image.network(
-                          place.photoUrl,
+                      ? CachedNetworkImage(
+                          imageUrl: place.photoUrl,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFF2D8B6F),
-                            child: const Icon(Icons.image_not_supported_outlined,
-                                size: 64, color: Colors.white54),
+                          placeholder: (context, url) => const Center(child: CircularProgressIndicator()),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey[200],
+                            child: const Icon(Icons.image_not_supported_outlined, color: Colors.grey, size: 40),
                           ),
                         )
                       : Container(

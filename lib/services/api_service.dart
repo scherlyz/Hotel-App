@@ -1,11 +1,14 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:http/http.dart' as http;
 
 class ApiService {
-  static const String baseUrl =
+  static const String _gasUrl =
       'https://script.google.com/macros/s/'
       'AKfycbw53aOLJOxS59zlITZMofbEJiUpuc29cFK4at34Kpt5vtNDHnzkDNvnQrCWfZ8kzTba_A/exec';
+
+  static const String _proxyUrl = 'https://corsproxy.io/?url=';
 
   static const int _maxRetries = 3;
   static const int _timeoutSeconds = 30;
@@ -20,42 +23,53 @@ class ApiService {
     return {'status': 'ok', 'message': 'Operasi berhasil'};
   }
 
-  // ─── GET Request dengan retry ────────────────────────────
+  // ─── GET Request ─────────────────────────────────────────
   static Future<Map<String, dynamic>> getRequest(
       Map<String, String> params) async {
     Exception? lastError;
 
     for (int attempt = 0; attempt < _maxRetries; attempt++) {
       if (attempt > 0) {
-        // Exponential backoff: 1s, 2s, 4s
         final delay = Duration(seconds: pow(2, attempt - 1).toInt());
         await Future.delayed(delay);
         print('GET retry attempt $attempt for params: $params');
       }
 
       try {
-        final uri = Uri.parse(baseUrl).replace(queryParameters: params);
-        final client = http.Client();
+        final gasUri = Uri.parse(_gasUrl).replace(queryParameters: params);
 
-        try {
-          final request = http.Request('GET', uri)..followRedirects = false;
-          final streamed = await client
-              .send(request)
+        if (kIsWeb) {
+          // Web: lewat proxy untuk bypass CORS
+          final proxyUri = Uri.parse('$_proxyUrl${Uri.encodeComponent(gasUri.toString())}');
+          final response = await http
+              .get(proxyUri)
               .timeout(Duration(seconds: _timeoutSeconds));
-
-          final redirectUrl = streamed.headers['location'];
-          if (redirectUrl != null) {
-            final redirectResponse = await http
-                .get(Uri.parse(redirectUrl))
-                .timeout(Duration(seconds: _timeoutSeconds));
-            print('GET Redirect response: ${redirectResponse.body}');
-            return _parseBody(redirectResponse.body);
-          }
-
-          final response = await http.Response.fromStream(streamed);
+          print('WEB GET response: ${response.body}');
           return _parseBody(response.body);
-        } finally {
-          client.close();
+        } else {
+          // Mobile: manual follow redirect
+          final client = http.Client();
+          try {
+            final request = http.Request('GET', gasUri)
+              ..followRedirects = false;
+            final streamed = await client
+                .send(request)
+                .timeout(Duration(seconds: _timeoutSeconds));
+
+            final redirectUrl = streamed.headers['location'];
+            if (redirectUrl != null) {
+              final redirectResponse = await http
+                  .get(Uri.parse(redirectUrl))
+                  .timeout(Duration(seconds: _timeoutSeconds));
+              print('GET Redirect response: ${redirectResponse.body}');
+              return _parseBody(redirectResponse.body);
+            }
+
+            final response = await http.Response.fromStream(streamed);
+            return _parseBody(response.body);
+          } finally {
+            client.close();
+          }
         }
       } catch (e) {
         lastError = e is Exception ? e : Exception(e.toString());
@@ -67,7 +81,7 @@ class ApiService {
     return {'status': 'error', 'message': lastError?.toString() ?? 'Request gagal'};
   }
 
-  // ─── POST Request dengan retry ───────────────────────────
+  // ─── POST Request ────────────────────────────────────────
   static Future<Map<String, dynamic>> postRequest(
       String path, Map<String, dynamic> body) async {
     Exception? lastError;
@@ -80,32 +94,47 @@ class ApiService {
       }
 
       try {
-        final uri = Uri.parse('$baseUrl?path=$path');
-        final client = http.Client();
+        final gasUri = Uri.parse('$_gasUrl?path=$path');
 
-        try {
-          final request = http.Request('POST', uri)
-            ..headers['Content-Type'] = 'application/json'
-            ..followRedirects = false
-            ..body = jsonEncode(body);
-
-          final streamed = await client
-              .send(request)
+        if (kIsWeb) {
+          // Web: lewat proxy untuk bypass CORS
+          final proxyUri = Uri.parse('$_proxyUrl${Uri.encodeComponent(gasUri.toString())}');
+          final response = await http
+              .post(
+                proxyUri,
+                headers: {'Content-Type': 'application/json'},
+                body: jsonEncode(body),
+              )
               .timeout(Duration(seconds: _timeoutSeconds));
-
-          final redirectUrl = streamed.headers['location'];
-          if (redirectUrl != null) {
-            final redirectResponse = await http
-                .get(Uri.parse(redirectUrl))
-                .timeout(Duration(seconds: _timeoutSeconds));
-            print('POST Redirect response: ${redirectResponse.body}');
-            return _parseBody(redirectResponse.body);
-          }
-
-          final response = await http.Response.fromStream(streamed);
+          print('WEB POST response: ${response.body}');
           return _parseBody(response.body);
-        } finally {
-          client.close();
+        } else {
+          // Mobile: manual follow redirect
+          final client = http.Client();
+          try {
+            final request = http.Request('POST', gasUri)
+              ..headers['Content-Type'] = 'application/json'
+              ..followRedirects = false
+              ..body = jsonEncode(body);
+
+            final streamed = await client
+                .send(request)
+                .timeout(Duration(seconds: _timeoutSeconds));
+
+            final redirectUrl = streamed.headers['location'];
+            if (redirectUrl != null) {
+              final redirectResponse = await http
+                  .get(Uri.parse(redirectUrl))
+                  .timeout(Duration(seconds: _timeoutSeconds));
+              print('POST Redirect response: ${redirectResponse.body}');
+              return _parseBody(redirectResponse.body);
+            }
+
+            final response = await http.Response.fromStream(streamed);
+            return _parseBody(response.body);
+          } finally {
+            client.close();
+          }
         }
       } catch (e) {
         lastError = e is Exception ? e : Exception(e.toString());
@@ -117,7 +146,7 @@ class ApiService {
     return {'status': 'error', 'message': lastError?.toString() ?? 'Request gagal'};
   }
 
-  // ─── Endpoints ──────────────────────────────────────────
+  // ─── Endpoints ───────────────────────────────────────────
 
   static Future<Map<String, dynamic>> getAllPlaces() =>
       getRequest({'path': 'places'});
@@ -174,6 +203,10 @@ class ApiService {
         'username': username,
       });
 
-  static Future<Map<String, dynamic>> getFavorites(String username) =>
-      postRequest('get_favorites', {'username': username});
+    static Future<Map<String, dynamic>> getFavorites(String username) async {
+    print('getFavorites called with username: "$username"');
+    final result = await postRequest('get_favorites', {'username': username});
+    print('getFavorites raw result: $result');
+    return result;
+  }
 }

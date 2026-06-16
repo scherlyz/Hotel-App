@@ -7,13 +7,17 @@ import 'detail_screen.dart';
 class FavoritesScreen extends StatefulWidget {
   final String username;
 
+  static final RouteObserver<ModalRoute<void>> routeObserver =
+      RouteObserver<ModalRoute<void>>();
+
   const FavoritesScreen({super.key, required this.username});
 
   @override
   State<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
-class _FavoritesScreenState extends State<FavoritesScreen> {
+class _FavoritesScreenState extends State<FavoritesScreen>
+    with RouteAware, WidgetsBindingObserver {
   List<Place> _favorites = [];
   bool _isLoading = true;
   String? _error;
@@ -21,10 +25,48 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadFavorites();
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (route != null) {
+      FavoritesScreen.routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    FavoritesScreen.routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // Dipanggil saat balik ke screen ini dari screen lain (misal DetailScreen)
+  @override
+  void didPopNext() {
+    _loadFavorites();
+  }
+
+  // Dipanggil saat screen ini pertama kali jadi top route
+  @override
+  void didPush() {
+    _loadFavorites();
+  }
+
+  // Dipanggil saat app resume dari background
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadFavorites();
+    }
+  }
+
   Future<void> _loadFavorites() async {
+    if (!mounted) return;
     setState(() {
       _isLoading = true;
       _error = null;
@@ -32,6 +74,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     try {
       final result = await ApiService.getFavorites(widget.username);
+      if (!mounted) return;
 
       if (result['status'] == 'ok') {
         final List data = result['data'] ?? [];
@@ -46,6 +89,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         });
       }
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = 'Terjadi kesalahan: $e';
         _isLoading = false;
@@ -60,52 +104,52 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         'username': widget.username,
       });
 
-      if (result['favorited'] == false) {
+      if (!mounted) return;
+
+      if (result['favorited'] == false || result['status'] == 'ok') {
         setState(() {
           _favorites.removeWhere((p) => p.id == place.id);
         });
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('${place.name} dihapus dari favorit'),
-              backgroundColor: const Color(0xFF1A1A1A), // Dark mode style snackbar
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              behavior: SnackBarBehavior.floating,
-              action: SnackBarAction(
-                label: 'Batalkan',
-                textColor: const Color(0xFFF5F5DC), // Cream text for action
-                onPressed: _loadFavorites,
-              ),
-            ),
-          );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Gagal menghapus favorit: $e'),
-            backgroundColor: const Color(0xFFDC2626), // Soft Red
+            content: Text('${place.name} dihapus dari favorit'),
+            backgroundColor: const Color(0xFF1A1A1A),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             behavior: SnackBarBehavior.floating,
+            action: SnackBarAction(
+              label: 'Batalkan',
+              textColor: const Color(0xFFF5F5DC),
+              onPressed: _loadFavorites,
+            ),
           ),
         );
       }
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menghapus favorit: $e'),
+          backgroundColor: const Color(0xFFDC2626),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5DC), // Cream beige background
+      backgroundColor: const Color(0xFFF5F5DC),
       appBar: AppBar(
-        title: const Text('Favorit Saya', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
+        title: const Text('Favorit Saya',
+            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 20)),
         backgroundColor: const Color(0xFFF5F5DC),
-        foregroundColor: const Color(0xFF1A1A1A), // Dark text
+        foregroundColor: const Color(0xFF1A1A1A),
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2D8B6F)), // Deep green icon
+            icon: const Icon(Icons.refresh_rounded, color: Color(0xFF2D8B6F)),
             onPressed: _loadFavorites,
           ),
         ],
@@ -116,7 +160,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
   Widget _buildBody() {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator(color: Color(0xFF2D8B6F)));
+      return const Center(
+          child: CircularProgressIndicator(color: Color(0xFF2D8B6F)));
     }
 
     if (_error != null) {
@@ -124,20 +169,26 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline_rounded, size: 56, color: Color(0xFF8899A6)),
+            const Icon(Icons.error_outline_rounded,
+                size: 56, color: Color(0xFF8899A6)),
             const SizedBox(height: 16),
-            Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF8899A6))),
+            Text(_error!,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Color(0xFF8899A6))),
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _loadFavorites,
               icon: const Icon(Icons.refresh, size: 20),
-              label: const Text('Coba Lagi', style: TextStyle(fontWeight: FontWeight.w600)),
+              label: const Text('Coba Lagi',
+                  style: TextStyle(fontWeight: FontWeight.w600)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2D8B6F),
                 foregroundColor: Colors.white,
                 elevation: 0,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               ),
             ),
           ],
@@ -150,17 +201,22 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.favorite_outline_rounded, size: 72, color: Color(0xFF8899A6)),
+            const Icon(Icons.favorite_outline_rounded,
+                size: 72, color: Color(0xFF8899A6)),
             const SizedBox(height: 20),
             const Text(
               'Belum ada favorit nih',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A1A1A)),
             ),
             const SizedBox(height: 8),
             const Text(
               'Cari destinasi impianmu\ndan simpan ke sini!',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Color(0xFF8899A6), height: 1.5, fontSize: 14),
+              style: TextStyle(
+                  color: Color(0xFF8899A6), height: 1.5, fontSize: 14),
             ),
           ],
         ),
@@ -182,30 +238,43 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             background: Container(
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.only(right: 28),
-              margin: const EdgeInsets.only(bottom: 16, right: 24, left: 24),
+              margin:
+                  const EdgeInsets.only(bottom: 16, right: 24, left: 24),
               decoration: BoxDecoration(
-                color: const Color(0xFFDC2626), // Soft Red
+                color: const Color(0xFFDC2626),
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 32),
+              child: const Icon(Icons.delete_outline_rounded,
+                  color: Colors.white, size: 32),
             ),
             confirmDismiss: (_) async {
               return await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                  title: const Text('Hapus Favorit?', style: TextStyle(color: Color(0xFF1A1A1A), fontWeight: FontWeight.bold)),
-                  content: Text('Yakin ingin menghapus ${place.name} dari daftar favoritmu?', style: const TextStyle(color: Color(0xFF555555))),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20)),
+                  title: const Text('Hapus Favorit?',
+                      style: TextStyle(
+                          color: Color(0xFF1A1A1A),
+                          fontWeight: FontWeight.bold)),
+                  content: Text(
+                      'Yakin ingin menghapus ${place.name} dari daftar favoritmu?',
+                      style: const TextStyle(color: Color(0xFF555555))),
                   actions: [
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Batal', style: TextStyle(color: Color(0xFF8899A6), fontWeight: FontWeight.bold)),
+                      child: const Text('Batal',
+                          style: TextStyle(
+                              color: Color(0xFF8899A6),
+                              fontWeight: FontWeight.bold)),
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
-                      child: const Text('Hapus', style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFFDC2626)),
+                      child: const Text('Hapus',
+                          style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
                   ],
                 ),
@@ -213,7 +282,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             },
             onDismissed: (_) => _removeFavorite(place),
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 16, left: 24, right: 24),
+              padding:
+                  const EdgeInsets.only(bottom: 16, left: 24, right: 24),
               child: PlaceCard(
                 place: place,
                 onTap: () {

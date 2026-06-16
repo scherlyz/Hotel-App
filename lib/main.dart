@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/admin_screen.dart';
+import 'services/location_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -19,6 +19,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Wisata & Hotel App',
       debugShowCheckedModeBanner: false,
+      navigatorObservers: [FavoritesScreen.routeObserver],
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF2D8B6F),
@@ -81,60 +82,51 @@ class _MainScreenState extends State<MainScreen> {
 
   Future<void> _initLocation() async {
     try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
+      print('[Location] Starting getLocation...');
+      final coords = await getLocation();
+      print('[Location] Result: $coords');
+
+      if (coords == null) {
+        print('[Location] coords is null — permission denied or GPS off');
         setState(() {
-          _locationText = 'GPS tidak aktif';
+          _locationText = 'Izin lokasi ditolak';
           _locationLoading = false;
         });
         return;
       }
 
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
+      _userLat = coords['lat'];
+      _userLng = coords['lng'];
+      print('[Location] lat: $_userLat, lng: $_userLng');
+
+      try {
+        final placemarks =
+            await placemarkFromCoordinates(_userLat!, _userLng!);
+        print('[Location] placemarks: $placemarks');
+        if (placemarks.isNotEmpty) {
+          final p = placemarks.first;
+          final parts = [
+            if (p.street != null && p.street!.isNotEmpty) p.street,
+            if (p.subLocality != null && p.subLocality!.isNotEmpty)
+              p.subLocality,
+            if (p.locality != null && p.locality!.isNotEmpty) p.locality,
+          ];
           setState(() {
-            _locationText = 'Izin lokasi ditolak';
+            _locationText =
+                parts.isNotEmpty ? parts.join(', ') : 'Lokasi ditemukan';
             _locationLoading = false;
           });
-          return;
         }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
+      } catch (e) {
+        print('[Location] Geocoding error: $e');
         setState(() {
-          _locationText = 'Aktifkan izin lokasi di Settings';
-          _locationLoading = false;
-        });
-        return;
-      }
-
-      final position = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.high),
-      );
-
-      _userLat = position.latitude;
-      _userLng = position.longitude;
-
-      final placemarks = await placemarkFromCoordinates(
-        position.latitude,
-        position.longitude,
-      );
-
-      if (placemarks.isNotEmpty) {
-        final p = placemarks.first;
-        final parts = [
-          if (p.street != null && p.street!.isNotEmpty) p.street,
-          if (p.subLocality != null && p.subLocality!.isNotEmpty) p.subLocality,
-          if (p.locality != null && p.locality!.isNotEmpty) p.locality,
-        ];
-        setState(() {
-          _locationText = parts.isNotEmpty ? parts.join(', ') : 'Lokasi ditemukan';
+          _locationText =
+              '${_userLat!.toStringAsFixed(4)}, ${_userLng!.toStringAsFixed(4)}';
           _locationLoading = false;
         });
       }
     } catch (e) {
+      print('[Location] Error: $e');
       setState(() {
         _locationText = 'Gagal mendapatkan lokasi';
         _locationLoading = false;
@@ -147,7 +139,7 @@ class _MainScreenState extends State<MainScreen> {
           HomeScreen(
             username: widget.username,
             isAdmin: true,
-            userLat: _userLat, // Pastikan HomeScreen kamu menerima ini jika dipakai
+            userLat: _userLat,
             userLng: _userLng,
           ),
           const AdminScreen(),
@@ -197,10 +189,10 @@ class _MainScreenState extends State<MainScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5DC), // Cream beige background
+      backgroundColor: const Color(0xFFF5F5DC),
       body: Column(
         children: [
-          // ─── Header (Hanya muncul di Tab Jelajahi / Home) ─────────────
+          // ─── Header (hanya di tab Jelajahi) ──────────
           if (_currentIndex == 0)
             Container(
               padding: EdgeInsets.only(
@@ -211,7 +203,8 @@ class _MainScreenState extends State<MainScreen> {
               ),
               decoration: const BoxDecoration(
                 color: Color(0xFF2D8B6F),
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
+                borderRadius:
+                    BorderRadius.vertical(bottom: Radius.circular(24)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
@@ -220,20 +213,16 @@ class _MainScreenState extends State<MainScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Halo username
                         Row(
                           children: [
-                            const Text(
-                              'Halo, ',
-                              style: TextStyle(color: Colors.white70, fontSize: 15),
-                            ),
-                            Text(
-                              widget.username,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.bold),
-                            ),
+                            const Text('Halo, ',
+                                style: TextStyle(
+                                    color: Colors.white70, fontSize: 15)),
+                            Text(widget.username,
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold)),
                             if (widget.isAdmin) ...[
                               const SizedBox(width: 6),
                               Container(
@@ -253,7 +242,6 @@ class _MainScreenState extends State<MainScreen> {
                           ],
                         ),
                         const SizedBox(height: 6),
-                        // Lokasi
                         Row(
                           children: [
                             const Icon(Icons.location_on_rounded,
@@ -292,15 +280,19 @@ class _MainScreenState extends State<MainScreen> {
                       ],
                     ),
                   ),
-
-                  // Tombol Favorit
+                  // Tombol Favorit — setState setelah balik dari FavoritesScreen
                   GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => FavoritesScreen(username: widget.username),
-                      ),
-                    ),
+                    onTap: () async {
+                      await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) =>
+                              FavoritesScreen(username: widget.username),
+                        ),
+                      );
+                      // Setelah balik dari FavoritesScreen, trigger rebuild
+                      setState(() {});
+                    },
                     child: Container(
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
@@ -315,19 +307,14 @@ class _MainScreenState extends State<MainScreen> {
               ),
             ),
 
-          // ─── Body Content ─────────────────────────────────────────────
-          Expanded(
-            child: _screens[_currentIndex],
-          ),
+          // ─── Body ─────────────────────────────────────
+          Expanded(child: _screens[_currentIndex]),
         ],
       ),
-
-      // ─── Bottom Nav ───────────────────────────────────────────────────
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() => _currentIndex = index);
-        },
+        onDestinationSelected: (index) =>
+            setState(() => _currentIndex = index),
         backgroundColor: Colors.white,
         indicatorColor: const Color(0xFF2D8B6F).withValues(alpha: 0.15),
         destinations: _destinations,

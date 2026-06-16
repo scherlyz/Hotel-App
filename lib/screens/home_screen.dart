@@ -73,6 +73,22 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() => _isLoading = false);
   }
 
+  // Hanya reload favorites (lebih ringan, tidak perlu reload semua places)
+  Future<void> _reloadFavorites() async {
+    try {
+      final favResult = await ApiService.getFavorites(widget.username);
+      if (!mounted) return;
+      if (favResult['status'] == 'ok') {
+        final List favs = favResult['data'] ?? [];
+        setState(() {
+          _favoriteIds = favs
+              .map<int>((e) => int.tryParse(e['id'].toString()) ?? 0)
+              .toSet();
+        });
+      }
+    } catch (_) {}
+  }
+
   // Haversine distance (km)
   double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
     const r = 6371.0;
@@ -114,7 +130,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleFavorite(Place place) async {
+    print('Toggling favorite for place id: ${place.id}, username: ${widget.username}');
     final result = await ApiService.toggleFavorite(place.id, widget.username);
+    print('toggleFavorite result: $result');
     if (result['status'] == 'ok') {
       setState(() {
         if (result['favorited'] == true) {
@@ -317,7 +335,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                           username: widget.username,
                                         ),
                                       ),
-                                    ),
+                                    ).then((_) => _reloadFavorites()), // ✅ reload favorites setelah balik
                                   ),
                                 );
                               },
