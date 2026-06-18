@@ -34,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordCtrl.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = 'Username dan password wajib diisi');
+      setState(() => _errorMessage = 'Username and password required');
       return;
     }
 
@@ -58,13 +58,13 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } else {
         setState(() {
-          _errorMessage = result['message'] ?? 'Login gagal';
+          _errorMessage = result['message'] ?? 'Login failed';
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Terjadi kesalahan: $e';
+        _errorMessage = 'An error occurred: $e';
         _isLoading = false;
       });
     }
@@ -84,7 +84,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 28),
               const _AuthHeader(
                 title: 'Welcome Back',
-                subtitle: 'Temukan tempat terbaik untuk perjalananmu',
+                subtitle: 'Find the best places for your travels',
               ),
               const SizedBox(height: 36),
 

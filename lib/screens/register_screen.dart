@@ -36,15 +36,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final confirm = _confirmCtrl.text.trim();
 
     if (username.isEmpty || password.isEmpty || confirm.isEmpty) {
-      setState(() => _errorMessage = 'Semua field wajib diisi');
+      setState(() => _errorMessage = 'All field must be filled');
       return;
     }
     if (password != confirm) {
-      setState(() => _errorMessage = 'Password tidak cocok');
+      setState(() => _errorMessage = 'Passwords do not match');
       return;
     }
     if (password.length < 6) {
-      setState(() => _errorMessage = 'Password minimal 6 karakter');
+      setState(() => _errorMessage = 'Password must be at least 6 characters');
       return;
     }
 
@@ -57,7 +57,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       if (result['status'] == 'ok') {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: const Text('Registrasi berhasil! Silakan login.'),
+            content: const Text('Registration successful! Please login.'),
             backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -69,13 +69,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       } else {
         setState(() {
-          _errorMessage = result['message'] ?? 'Registrasi gagal';
+          _errorMessage = result['message'] ?? 'Registration failed';
           _isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        _errorMessage = 'Terjadi kesalahan: $e';
+        _errorMessage = 'An error occurred: $e';
         _isLoading = false;
       });
     }
@@ -94,8 +94,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
               _AppLogo(icon: Icons.person_add_rounded),
               const SizedBox(height: 28),
               const _AuthHeader(
-                title: 'Buat Akun Baru',
-                subtitle: 'Bergabung dan mulai temukan tempat terbaik untuk perjalananmu',
+                title: 'Create New Account',
+                subtitle: 'Join and start discovering the best places for your travels',
               ),
               const SizedBox(height: 36),
 
@@ -120,7 +120,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               AppTextField(
                 controller: _confirmCtrl,
-                hint: 'Konfirmasi Password',
+                hint: 'Confirm Password',
                 prefixIcon: Icons.lock_outline,
                 obscureText: _obscureConfirm,
                 textInputAction: TextInputAction.done,
@@ -137,12 +137,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 const SizedBox(height: 20),
               ],
 
-              AppButton(label: 'Daftar Sekarang', onPressed: _register, isLoading: _isLoading),
+              AppButton(label: 'Sign Up', onPressed: _register, isLoading: _isLoading),
               const SizedBox(height: 24),
 
               _AuthFooter(
-                message: 'Sudah punya akun? ',
-                actionLabel: 'Masuk',
+                message: 'Already have an account? ',
+                actionLabel: 'Log in',
                 onTap: () => Navigator.pushReplacement(
                   context,
                   MaterialPageRoute(builder: (_) => const LoginScreen()),

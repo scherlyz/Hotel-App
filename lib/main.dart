@@ -6,6 +6,7 @@ import 'screens/favorites_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/admin_screen.dart';
 import 'services/location_service.dart';
+import 'screens/splash_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -48,7 +49,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const LoginScreen(),
+      home: const SplashScreen(),
     );
   }
 }
