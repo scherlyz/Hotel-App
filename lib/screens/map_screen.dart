@@ -28,6 +28,8 @@ class _MapScreenState extends State<MapScreen> {
   String? _routeError;
   double? _distanceKm;
   int? _durationMin;
+  List<Map<String, dynamic>> _steps = [];
+  int _currentStepIndex = 0;
 
   @override
   void initState() {
@@ -87,7 +89,18 @@ class _MapScreenState extends State<MapScreen> {
         final data = jsonDecode(response.body);
         final feature = data['features'][0];
         final coords = feature['geometry']['coordinates'] as List;
-        final summary = feature['properties']['summary'];
+        final properties = feature['properties'];
+        final summary = properties['summary'];
+        final segments = properties['segments'] as List;
+        final routeSteps = segments.first['steps'] as List;
+
+        final parsedSteps = routeSteps.map((step) {
+          return {
+            'instruction': step['instruction'],
+            'distance': step['distance'],
+            'duration': step['duration'],
+          };
+        }).toList();
 
         final points = coords
             .map<LatLng>((c) => LatLng(
@@ -96,6 +109,8 @@ class _MapScreenState extends State<MapScreen> {
 
         setState(() {
           _routePoints = points;
+          _steps = parsedSteps;
+          _currentStepIndex = 0;
           _distanceKm =
               (summary['distance'] as num).toDouble() / 1000;
           _durationMin =
@@ -253,6 +268,36 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
 
+          
+          if (_steps.isNotEmpty)
+            Positioned(
+              top: 20,
+              left: 20,
+              right: 20,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.turn_right, color: Color(0xFF1565C0)),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        _steps[_currentStepIndex]['instruction'].toString(),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
           // Info card
           Positioned(
             bottom: 90,
@@ -370,6 +415,40 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           ),
+
+          
+          if (_steps.isNotEmpty)
+            Positioned(
+              bottom: 250,
+              left: 20,
+              right: 20,
+              child: Container(
+                height: 180,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ListView.builder(
+                  itemCount: _steps.length,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      leading: Icon(
+                        index == _currentStepIndex
+                            ? Icons.navigation
+                            : Icons.turn_right,
+                      ),
+                      title: Text(
+                        _steps[index]['instruction'].toString(),
+                      ),
+                      subtitle: Text(
+                        '${((_steps[index]["distance"] as num).toDouble() / 1000).toStringAsFixed(2)} km',
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+
 
           // Error GPS
           if (_locationError != null)

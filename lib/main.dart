@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:geocoding/geocoding.dart';
-import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/admin_screen.dart';
 import 'services/location_service.dart';
 import 'screens/splash_screen.dart';
+import 'core/constants/app_theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -21,34 +21,7 @@ class MyApp extends StatelessWidget {
       title: 'Wisata & Hotel App',
       debugShowCheckedModeBanner: false,
       navigatorObservers: [FavoritesScreen.routeObserver],
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF2D8B6F),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF2D8B6F),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2D8B6F),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF2D8B6F), width: 2),
-          ),
-        ),
-      ),
+      theme: AppTheme.theme,
       home: const SplashScreen(),
     );
   }
