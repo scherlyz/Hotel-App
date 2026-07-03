@@ -11,38 +11,45 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  
+
   late AnimationController _controller;
-  late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _scaleAnimation;
 
   @override
   void initState() {
     super.initState();
 
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 1800),
+      duration: const Duration(milliseconds: 1400),
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    _fadeAnimation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
     );
 
-    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    _scaleAnimation = Tween<double>(
+      begin: 0.9,
+      end: 1,
+    ).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: Curves.easeOutBack,
+      ),
     );
 
     _controller.forward();
+  }
 
-    // Navigasi ke Login Screen
-    Future.delayed(const Duration(seconds: 3), () {
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginScreen()),
-      );
-    });
+  void _goToLogin() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const LoginScreen(),
+      ),
+    );
   }
 
   @override
@@ -54,90 +61,159 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.primary,
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // Animated Logo
-            AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: Opacity(
-                    opacity: _fadeAnimation.value,
-                    child: Container(
-                      width: 170,
-                      height: 170,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 25,
-                            offset: const Offset(0, 12),
+      body: Stack(
+        children: [
+
+          /// Background Image
+          Positioned.fill(
+            child: Image.asset(
+              'lib/assets/images/splash_hotel.jpg', // Ganti jika assets di root
+              fit: BoxFit.cover,
+            ),
+          ),
+
+          /// Dark Overlay
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(.25),
+                    Colors.black.withOpacity(.35),
+                    Colors.black.withOpacity(.55),
+                    Colors.black.withOpacity(.75),
+                  ],
+                ),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: FadeTransition(
+              opacity: _fadeAnimation,
+              child: ScaleTransition(
+                scale: _scaleAnimation,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 28,
+                    vertical: 24,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+
+                      const SizedBox(height: 40),
+
+                      RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w900,
+                            height: 1.05,
+                          ),
+                          children: [
+
+                            const TextSpan(
+                              text: "Connect\nWith\nThe ",
+                            ),
+
+                            WidgetSpan(
+                              alignment: PlaceholderAlignment.middle,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 6,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xff1F8A70),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Text(
+                                  "StayMap",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 30,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                            const TextSpan(
+                              text: "\nJourney",
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const Spacer(),
+
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+
+                          Expanded(
+                            child: Text(
+                              "Discover the best hotels around you.\nFind your perfect stay quickly\nand comfortably.",
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(.95),
+                                fontSize: 15,
+                                height: 1.6,
+                                fontWeight: FontWeight.w400,
+                              ),
+                            ),
+                          ),
+
+                          const SizedBox(width: 18),
+
+                          InkWell(
+                            borderRadius: BorderRadius.circular(100),
+                            onTap: _goToLogin,
+                            child: Container(
+                              width: 92,
+                              height: 92,
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white,
+                                  width: 2,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: AppColors.primary.withOpacity(.45),
+                                    blurRadius: 25,
+                                    spreadRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: const Center(
+                                child: Text(
+                                  "START",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 15,
+                                    letterSpacing: 1.5,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.map_outlined,
-                        size: 95,
-                        color: AppColors.primary,
-                      ),
-                    ),
+
+                      const SizedBox(height: 25),
+                    ],
                   ),
-                );
-              },
+                ),
+              ),
             ),
-
-            const SizedBox(height: 50),
-
-            // Animated Text - StayMap
-            AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _fadeAnimation.value,
-                  child: Transform.translate(
-                    offset: Offset(0, 20 * (1 - _fadeAnimation.value)),
-                    child: const Text(
-                      'StayMap',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 48,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.8,
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
-
-            const SizedBox(height: 12),
-
-            // Tagline dengan delay sedikit
-            AnimatedBuilder(
-              animation: _controller,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _fadeAnimation.value,
-                  child: const Text(
-                    'Travel with ease',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: 1.5,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
