@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_colors.dart';
 import '../models/place.dart';
 import '../services/api_service.dart';
 import '../widgets/place_card.dart';
 import 'detail_screen.dart';
+import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String username;
   final bool isAdmin;
+  final bool isGuest;
   final double? userLat;
   final double? userLng;
 
@@ -14,6 +17,7 @@ class HomeScreen extends StatefulWidget {
     super.key,
     required this.username,
     this.isAdmin = false,
+    this.isGuest = false,
     this.userLat,
     this.userLng,
   });
@@ -46,7 +50,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _loadData() async {
     setState(() { _isLoading = true; _error = null; });
-
     try {
       final placesResult = await ApiService.getAllPlaces();
       if (!mounted) return;
@@ -58,38 +61,40 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = placesResult['message'] ?? 'Gagal memuat data';
       }
 
-      final favResult = await ApiService.getFavorites(widget.username);
-      if (!mounted) return;
-      if (favResult['status'] == 'ok') {
-        final List favs = favResult['data'] ?? [];
-        _favoriteIds = favs.map<int>((e) => int.tryParse(e['id'].toString()) ?? 0).toSet();
+      // Hanya fetch favorites kalau bukan guest
+      if (!widget.isGuest) {
+        final favResult = await ApiService.getFavorites(widget.username);
+        if (!mounted) return;
+        if (favResult['status'] == 'ok') {
+          final List favs = favResult['data'] ?? [];
+          _favoriteIds = favs
+              .map<int>((e) => int.tryParse(e['id'].toString()) ?? 0)
+              .toSet();
+        }
       }
 
       _filterPlaces();
     } catch (e) {
       _error = 'Gagal memuat data: $e';
     }
-
     if (mounted) setState(() => _isLoading = false);
   }
 
-  // Hanya reload favorites (lebih ringan, tidak perlu reload semua places)
   Future<void> _reloadFavorites() async {
+    if (widget.isGuest) return;
     try {
       final favResult = await ApiService.getFavorites(widget.username);
       if (!mounted) return;
       if (favResult['status'] == 'ok') {
         final List favs = favResult['data'] ?? [];
         setState(() {
-          _favoriteIds = favs
-              .map<int>((e) => int.tryParse(e['id'].toString()) ?? 0)
-              .toSet();
+          _favoriteIds =
+              favs.map<int>((e) => int.tryParse(e['id'].toString()) ?? 0).toSet();
         });
       }
     } catch (_) {}
   }
 
-  // Haversine distance (km)
   double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
     const r = 6371.0;
     final dLat = (lat2 - lat1) * 3.14159265358979 / 180;
@@ -105,24 +110,21 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _filterPlaces() {
     final query = _searchCtrl.text.toLowerCase();
-
     setState(() {
-      // Filter teks
       _filteredPlaces = _allPlaces.where((p) {
         return query.isEmpty ||
             p.name.toLowerCase().contains(query) ||
             p.address.toLowerCase().contains(query);
       }).toList();
 
-      // Sorting
       if (_selectedFilter == 'Harga Termurah') {
         _filteredPlaces.sort((a, b) => a.priceMin.compareTo(b.priceMin));
       } else if (_selectedFilter == 'Hotel Terdekat') {
         if (widget.userLat != null && widget.userLng != null) {
           _filteredPlaces.sort((a, b) {
-            final distA = _distanceKm(a.lat, a.lng, widget.userLat!, widget.userLng!);
-            final distB = _distanceKm(b.lat, b.lng, widget.userLat!, widget.userLng!);
-            return distA.compareTo(distB);
+            final dA = _distanceKm(a.lat, a.lng, widget.userLat!, widget.userLng!);
+            final dB = _distanceKm(b.lat, b.lng, widget.userLat!, widget.userLng!);
+            return dA.compareTo(dB);
           });
         }
       }
@@ -130,9 +132,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleFavorite(Place place) async {
-    print('Toggling favorite for place id: ${place.id}, username: ${widget.username}');
+    // Guest → arahkan ke login
+    if (widget.isGuest) {
+      _showLoginPrompt();
+      return;
+    }
     final result = await ApiService.toggleFavorite(place.id, widget.username);
-    print('toggleFavorite result: $result');
     if (result['status'] == 'ok') {
       setState(() {
         if (result['favorited'] == true) {
@@ -144,35 +149,67 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _showLoginPrompt() {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Login Diperlukan',
+            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        content: const Text('Login untuk menyimpan favorit dan mengakses fitur lengkap.',
+            style: TextStyle(color: AppColors.textSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Nanti',
+                style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold)),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                  context, MaterialPageRoute(builder: (_) => const LoginScreen()));
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+            child: const Text('Login', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: const Color(0xFFF5F5DC),
+      color: AppColors.background,
       child: Column(
         children: [
-          // ─── Search Bar ────────────────────────────────
+          // ─── Search Bar ──────────────────────────────
           Container(
             margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE8E8E8), width: 1),
+              border: Border.all(color: AppColors.border),
             ),
             child: TextField(
               controller: _searchCtrl,
               onChanged: (_) => _filterPlaces(),
-              style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A1A)),
+              style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
               decoration: const InputDecoration(
                 hintText: 'Cari tempat wisata atau hotel...',
-                hintStyle: TextStyle(color: Color(0xFFAAAAAA), fontSize: 14),
-                prefixIcon: Icon(Icons.search_rounded, color: Color(0xFF2D8B6F), size: 22),
+                hintStyle: TextStyle(color: AppColors.textHint, fontSize: 14),
+                prefixIcon:
+                    Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
                 border: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               ),
             ),
           ),
 
-          // ─── Filter Pills ──────────────────────────────
+          // ─── Filter Pills ────────────────────────────
           SizedBox(
             height: 64,
             child: ListView.separated(
@@ -181,75 +218,72 @@ class _HomeScreenState extends State<HomeScreen> {
               itemCount: _filters.length,
               separatorBuilder: (_, __) => const SizedBox(width: 10),
               itemBuilder: (_, i) {
-                final filterName = _filters[i];
-                final selected = filterName == _selectedFilter;
-                // Disable "Hotel Terdekat" kalau lokasi tidak tersedia
-                final isDisabled = filterName == 'Hotel Terdekat' &&
-                    widget.userLat == null;
+                final name = _filters[i];
+                final selected = name == _selectedFilter;
+                final isDisabled =
+                    name == 'Hotel Terdekat' && widget.userLat == null;
                 return GestureDetector(
                   onTap: isDisabled
-                      ? () {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                      ? () => ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Izinkan akses lokasi untuk menggunakan filter ini'),
+                              content: Text(
+                                  'Izinkan akses lokasi untuk menggunakan filter ini'),
                               behavior: SnackBarBehavior.floating,
                             ),
-                          );
-                        }
+                          )
                       : () {
-                          setState(() => _selectedFilter = filterName);
+                          setState(() => _selectedFilter = name);
                           _filterPlaces();
                         },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                     decoration: BoxDecoration(
                       color: isDisabled
                           ? const Color(0xFFF5F5F5)
                           : selected
-                              ? const Color(0xFF2D8B6F)
+                              ? AppColors.primary
                               : Colors.white,
                       borderRadius: BorderRadius.circular(24),
                       border: Border.all(
                         color: isDisabled
-                            ? const Color(0xFFE8E8E8)
+                            ? AppColors.border
                             : selected
-                                ? const Color(0xFF2D8B6F)
-                                : const Color(0xFFE8E8E8),
-                        width: 1,
+                                ? AppColors.primary
+                                : AppColors.border,
                       ),
                     ),
                     child: Row(
                       children: [
-                        if (filterName == 'Hotel Terdekat') ...[
-                          Icon(
-                            Icons.location_on_rounded,
-                            size: 14,
-                            color: isDisabled
-                                ? const Color(0xFFCCCCCC)
-                                : selected
-                                    ? Colors.white
-                                    : const Color(0xFF555555),
-                          ),
+                        if (name == 'Hotel Terdekat') ...[
+                          Icon(Icons.location_on_rounded,
+                              size: 14,
+                              color: isDisabled
+                                  ? const Color(0xFFCCCCCC)
+                                  : selected
+                                      ? Colors.white
+                                      : AppColors.textSecondary),
                           const SizedBox(width: 4),
                         ],
-                        if (filterName == 'Harga Termurah') ...[
-                          Icon(
-                            Icons.attach_money_rounded,
-                            size: 14,
-                            color: selected ? Colors.white : const Color(0xFF555555),
-                          ),
+                        if (name == 'Harga Termurah') ...[
+                          Icon(Icons.attach_money_rounded,
+                              size: 14,
+                              color: selected
+                                  ? Colors.white
+                                  : AppColors.textSecondary),
                           const SizedBox(width: 4),
                         ],
                         Text(
-                          filterName,
+                          name,
                           style: TextStyle(
                             color: isDisabled
                                 ? const Color(0xFFCCCCCC)
                                 : selected
                                     ? Colors.white
-                                    : const Color(0xFF555555),
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                                    : AppColors.textSecondary,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.w500,
                             fontSize: 13,
                           ),
                         ),
@@ -261,7 +295,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // ─── Jumlah hasil ──────────────────────────────
+          // ─── Jumlah hasil ────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
             child: Row(
@@ -269,7 +303,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 Text(
                   '${_filteredPlaces.length} tempat ditemukan',
                   style: const TextStyle(
-                      color: Color(0xFF8899A6), fontSize: 13, fontWeight: FontWeight.w500),
+                      color: AppColors.textMuted,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500),
                 ),
                 if (_selectedFilter != 'Semua') ...[
                   const SizedBox(width: 8),
@@ -279,22 +315,22 @@ class _HomeScreenState extends State<HomeScreen> {
                       _filterPlaces();
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2D8B6F).withValues(alpha: 0.1),
+                        color: AppColors.primaryLight,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Row(
                         children: [
-                          Text(
-                            _selectedFilter,
-                            style: const TextStyle(
-                                fontSize: 11,
-                                color: Color(0xFF2D8B6F),
-                                fontWeight: FontWeight.w600),
-                          ),
+                          Text(_selectedFilter,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.w600)),
                           const SizedBox(width: 3),
-                          const Icon(Icons.close, size: 11, color: Color(0xFF2D8B6F)),
+                          const Icon(Icons.close,
+                              size: 11, color: AppColors.primary),
                         ],
                       ),
                     ),
@@ -304,20 +340,22 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
 
-          // ─── List Tempat ───────────────────────────────
+          // ─── List Tempat ─────────────────────────────
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: Color(0xFF2D8B6F)))
+                ? const Center(
+                    child: CircularProgressIndicator(color: AppColors.primary))
                 : _error != null
                     ? _buildError()
                     : _filteredPlaces.isEmpty
                         ? _buildEmpty()
                         : RefreshIndicator(
                             onRefresh: _loadData,
-                            color: const Color(0xFF2D8B6F),
+                            color: AppColors.primary,
                             backgroundColor: Colors.white,
                             child: ListView.builder(
-                              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
+                              padding:
+                                  const EdgeInsets.fromLTRB(24, 8, 24, 24),
                               itemCount: _filteredPlaces.length,
                               itemBuilder: (_, i) {
                                 final place = _filteredPlaces[i];
@@ -325,17 +363,20 @@ class _HomeScreenState extends State<HomeScreen> {
                                   padding: const EdgeInsets.only(bottom: 16),
                                   child: PlaceCard(
                                     place: place,
-                                    isFavorite: _favoriteIds.contains(place.id),
-                                    onFavoriteTap: () => _toggleFavorite(place),
+                                    isFavorite: !widget.isGuest &&
+                                        _favoriteIds.contains(place.id),
+                                    onFavoriteTap: () =>
+                                        _toggleFavorite(place),
                                     onTap: () => Navigator.push(
                                       context,
                                       MaterialPageRoute(
                                         builder: (_) => DetailScreen(
                                           placeId: place.id,
                                           username: widget.username,
+                                          isGuest: widget.isGuest,
                                         ),
                                       ),
-                                    ).then((_) => _reloadFavorites()), // ✅ reload favorites setelah balik
+                                    ).then((_) => _reloadFavorites()),
                                   ),
                                 );
                               },
@@ -352,21 +393,25 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.wifi_off, size: 48, color: Color(0xFF8899A6)),
+          const Icon(Icons.wifi_off, size: 48, color: AppColors.textMuted),
           const SizedBox(height: 16),
-          Text(_error!, textAlign: TextAlign.center,
-              style: const TextStyle(color: Color(0xFF8899A6), fontSize: 14)),
+          Text(_error!,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
           const SizedBox(height: 24),
           ElevatedButton.icon(
             onPressed: _loadData,
             icon: const Icon(Icons.refresh, size: 20),
-            label: const Text('Coba lagi', style: TextStyle(fontWeight: FontWeight.w600)),
+            label: const Text('Coba lagi',
+                style: TextStyle(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2D8B6F),
+              backgroundColor: AppColors.primary,
               foregroundColor: Colors.white,
               elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14)),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
         ],
@@ -379,10 +424,13 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.search_off, size: 56, color: Color(0xFF8899A6)),
+          Icon(Icons.search_off, size: 56, color: AppColors.textMuted),
           SizedBox(height: 16),
           Text('Tidak ada tempat yang ditemukan',
-              style: TextStyle(color: Color(0xFF8899A6), fontSize: 15, fontWeight: FontWeight.w500)),
+              style: TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500)),
         ],
       ),
     );

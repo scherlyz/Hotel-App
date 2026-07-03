@@ -1,5 +1,4 @@
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../core/widgets/app_button.dart';
@@ -44,42 +43,37 @@ class _LoginScreenState extends State<LoginScreen> {
     final password = _passwordCtrl.text.trim();
 
     if (username.isEmpty || password.isEmpty) {
-      setState(() => _errorMessage = "Username and password required");
+      setState(() => _errorMessage = 'Username dan password wajib diisi');
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+    setState(() { _isLoading = true; _errorMessage = null; });
 
     try {
-      final result = await ApiService.postRequest(
-        "login",
-        {
-          "username": username,
-          "password": password,
-        },
-      );
+      final result = await ApiService.postRequest('login', {
+        'username': username,
+        'password': password,
+      });
 
       if (!mounted) return;
 
-      if (result["status"] == "ok") {
-        final role = result["data"]?["role"]?.toString() ?? "user";
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (_) => MainScreen(
-                username: username,
-                isAdmin: role == "admin",
-              ),
+      if (result['status'] == 'ok') {
+        final role = result['data']?['role']?.toString() ?? 'user';
+        // pushReplacement — hapus semua history (termasuk SplashScreen / stack guest)
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (_) => MainScreen(
+              username: username,
+              isAdmin: role == 'admin',
+              isGuest: false, // ← selalu false setelah login
             ),
-          );
-        }
+          ),
+          (_) => false,
+        );
       } else {
         setState(() {
-          _errorMessage = result["message"] ?? "Login failed";
+          _errorMessage = result['message'] ?? 'Login gagal';
           _isLoading = false;
         });
       }
@@ -96,7 +90,6 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final screenHeight = MediaQuery.of(context).size.height;
-    
     return Scaffold(
       resizeToAvoidBottomInset: true,
       body: Stack(
@@ -111,10 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildBackground() {
     return Positioned.fill(
-      child: Image.asset(
-        "lib/assets/images/login_bg.jpg",
-        fit: BoxFit.cover,
-      ),
+      child: Image.asset('lib/assets/images/login_bg.jpg', fit: BoxFit.cover),
     );
   }
 
@@ -126,9 +116,9 @@ class _LoginScreenState extends State<LoginScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Colors.black.withOpacity(.15),
-              Colors.black.withOpacity(.35),
-              Colors.black.withOpacity(.45),
+              Colors.black.withValues(alpha: .15),
+              Colors.black.withValues(alpha: .35),
+              Colors.black.withValues(alpha: .45),
             ],
           ),
         ),
@@ -164,12 +154,12 @@ class _LoginScreenState extends State<LoginScreen> {
           width: double.infinity,
           padding: const EdgeInsets.fromLTRB(28, 34, 28, 30),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(.18),
+            color: Colors.white.withValues(alpha: .18),
             borderRadius: const BorderRadius.only(
               topLeft: Radius.circular(38),
               topRight: Radius.circular(38),
             ),
-            border: Border.all(color: Colors.white.withOpacity(.25)),
+            border: Border.all(color: Colors.white.withValues(alpha: .25)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -202,22 +192,12 @@ class _LoginScreenState extends State<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          "Sign In",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 40,
-          ),
-        ),
+        const Text('Sign In',
+            style: TextStyle(
+                color: Colors.white, fontWeight: FontWeight.bold, fontSize: 40)),
         const SizedBox(height: 8),
-        Text(
-          "Welcome back to StayMap",
-          style: TextStyle(
-            color: Colors.white.withOpacity(.9),
-            fontSize: 16,
-          ),
-        ),
+        Text('Welcome back to StayMap',
+            style: TextStyle(color: Colors.white.withValues(alpha: .9), fontSize: 16)),
       ],
     );
   }
@@ -226,11 +206,11 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(.35)),
+        border: Border.all(color: Colors.white.withValues(alpha: .35)),
       ),
       child: AppTextField(
         controller: _usernameCtrl,
-        hint: "Username",
+        hint: 'Username',
         prefixIcon: Icons.person_outline,
       ),
     );
@@ -240,19 +220,21 @@ class _LoginScreenState extends State<LoginScreen> {
     return Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withOpacity(.35)),
+        border: Border.all(color: Colors.white.withValues(alpha: .35)),
       ),
       child: AppTextField(
         controller: _passwordCtrl,
-        hint: "Password",
+        hint: 'Password',
         prefixIcon: Icons.lock_outline,
         obscureText: _obscurePassword,
         textInputAction: TextInputAction.done,
-        onSubmit: () => _login(),
+        onSubmit: _login,
         suffixIcon: IconButton(
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
           icon: Icon(
-            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            _obscurePassword
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
             color: Colors.white70,
           ),
         ),
@@ -273,35 +255,25 @@ class _LoginScreenState extends State<LoginScreen> {
                 value: _rememberMe,
                 activeColor: AppColors.primary,
                 side: const BorderSide(color: Colors.white),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(5)),
-                onChanged: (value) => setState(() => _rememberMe = value ?? false),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5)),
+                onChanged: (v) => setState(() => _rememberMe = v ?? false),
               ),
             ),
             const SizedBox(width: 10),
-            const Text(
-              "Remember me",
-              style: TextStyle(color: Colors.white, fontSize: 13),
-            ),
+            const Text('Remember me',
+                style: TextStyle(color: Colors.white, fontSize: 13)),
           ],
         ),
-        GestureDetector(
-          onTap: () {},
-          child: const Text(
-            "Forgot Password?",
+        const Text('Forgot Password?',
             style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 13,
-            ),
-          ),
-        ),
+                color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
       ],
     );
   }
 
   Widget _buildErrorBanner() {
     if (_errorMessage == null) return const SizedBox.shrink();
-    
     return Column(
       children: [
         ErrorBanner(message: _errorMessage!),
@@ -313,33 +285,21 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildLoginButton() {
     return SizedBox(
       width: double.infinity,
-      child: AppButton(
-        label: "Sign In",
-        onPressed: _login,
-        isLoading: _isLoading,
-      ),
+      child: AppButton(label: 'Sign In', onPressed: _login, isLoading: _isLoading),
     );
   }
 
   Widget _buildDivider() {
     return Row(
       children: [
-        Expanded(
-          child: Divider(color: Colors.white.withOpacity(.35)),
-        ),
+        Expanded(child: Divider(color: Colors.white.withValues(alpha: .35))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(
-            "Or sign in with",
-            style: TextStyle(
-              color: Colors.white.withOpacity(.85),
-              fontSize: 14,
-            ),
-          ),
+          child: Text('Or sign in with',
+              style: TextStyle(
+                  color: Colors.white.withValues(alpha: .85), fontSize: 14)),
         ),
-        Expanded(
-          child: Divider(color: Colors.white.withOpacity(.35)),
-        ),
+        Expanded(child: Divider(color: Colors.white.withValues(alpha: .35))),
       ],
     );
   }
@@ -361,35 +321,24 @@ class _LoginScreenState extends State<LoginScreen> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          "Don't have an account? ",
-          style: TextStyle(color: Colors.white.withOpacity(.85)),
-        ),
+        Text("Don't have an account? ",
+            style: TextStyle(color: Colors.white.withValues(alpha: .85))),
         GestureDetector(
           onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const RegisterScreen()),
-          ),
-          child: const Text(
-            "Sign Up",
-            style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+              context, MaterialPageRoute(builder: (_) => const RegisterScreen())),
+          child: const Text('Sign Up',
+              style:
+                  TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         ),
       ],
     );
   }
 }
+
 class _SocialIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
-
-  const _SocialIconButton({
-    required this.icon,
-    required this.onTap,
-  });
+  const _SocialIconButton({required this.icon, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -400,15 +349,11 @@ class _SocialIconButton extends StatelessWidget {
         width: 58,
         height: 58,
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(.18),
+          color: Colors.white.withValues(alpha: .18),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: Colors.white.withOpacity(.30)),
+          border: Border.all(color: Colors.white.withValues(alpha: .30)),
         ),
-        child: Icon(
-          icon,
-          color: Colors.white,
-          size: 28,
-        ),
+        child: Icon(icon, color: Colors.white, size: 28),
       ),
     );
   }

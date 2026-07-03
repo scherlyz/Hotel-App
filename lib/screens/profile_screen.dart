@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import '../core/constants/app_colors.dart';
 import '../services/api_service.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String username;
+  final bool isGuest;
 
-  const ProfileScreen({super.key, required this.username});
+  const ProfileScreen({
+    super.key,
+    required this.username,
+    this.isGuest = false,
+  });
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
@@ -48,7 +54,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result['status'] == 'ok') {
       _oldPasswordCtrl.clear();
       _newPasswordCtrl.clear();
-      Navigator.pop(context); // tutup bottom sheet
+      Navigator.pop(context);
       _showSnackbar('Password berhasil diubah!');
     } else {
       _showSnackbar(result['message'] ?? 'Gagal mengubah password', isError: true);
@@ -88,15 +94,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
-        backgroundColor: isError ? const Color(0xFFDC2626) : const Color(0xFF2D8B6F),
+        backgroundColor: isError ? AppColors.error : AppColors.primary,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       ),
     );
   }
 
-  // Helper widget untuk TextField pada BottomSheet
-  Widget _buildBottomSheetTextField({
+  Widget _buildTextField({
     required TextEditingController controller,
     required String labelText,
     required IconData prefixIcon,
@@ -106,26 +111,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return TextField(
       controller: controller,
       obscureText: obscureText,
-      style: const TextStyle(fontSize: 15, color: Color(0xFF1A1A1A)),
+      style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
       decoration: InputDecoration(
         labelText: labelText,
-        labelStyle: const TextStyle(color: Color(0xFF8899A6), fontSize: 14),
+        labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
         filled: true,
         fillColor: Colors.white,
-        prefixIcon: Icon(prefixIcon, color: const Color(0xFF2D8B6F), size: 22),
+        prefixIcon: Icon(prefixIcon, color: AppColors.primary, size: 22),
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
-        ),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.border)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFFE8E8E8)),
-        ),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.border)),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF2D8B6F), width: 1.5),
-        ),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: AppColors.primary, width: 1.5)),
       ),
     );
   }
@@ -136,8 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
         padding: EdgeInsets.only(
           left: 24, right: 24, top: 24,
@@ -147,29 +148,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Ubah Password',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
-            ),
+            const Text('Ubah Password',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
             const SizedBox(height: 24),
-            _buildBottomSheetTextField(
+            _buildTextField(
               controller: _oldPasswordCtrl,
               labelText: 'Password Lama',
               prefixIcon: Icons.lock_outline,
               obscureText: _obscureOld,
               suffixIcon: IconButton(
-                icon: Icon(_obscureOld ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFFAAAAAA)),
+                icon: Icon(
+                    _obscureOld
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: AppColors.textHint),
                 onPressed: () => setState(() => _obscureOld = !_obscureOld),
               ),
             ),
             const SizedBox(height: 16),
-            _buildBottomSheetTextField(
+            _buildTextField(
               controller: _newPasswordCtrl,
               labelText: 'Password Baru',
               prefixIcon: Icons.lock_outline,
               obscureText: _obscureNew,
               suffixIcon: IconButton(
-                icon: Icon(_obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined, color: const Color(0xFFAAAAAA)),
+                icon: Icon(
+                    _obscureNew
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                    color: AppColors.textHint),
                 onPressed: () => setState(() => _obscureNew = !_obscureNew),
               ),
             ),
@@ -180,15 +190,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ElevatedButton(
                 onPressed: _isChangingPassword ? null : _changePassword,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D8B6F),
+                  backgroundColor: AppColors.primary,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isChangingPassword
-                    ? const SizedBox(height: 20, width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5))
                     : const Text('Simpan Password',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15)),
               ),
             ),
           ],
@@ -203,8 +219,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Padding(
         padding: EdgeInsets.only(
           left: 24, right: 24, top: 24,
@@ -214,17 +229,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Ubah Username',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: Color(0xFF1A1A1A)),
-            ),
+            const Text('Ubah Username',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.textPrimary)),
             const SizedBox(height: 8),
-            const Text(
-              'Setelah ubah username, kamu akan diminta login ulang.',
-              style: TextStyle(color: Color(0xFF8899A6), fontSize: 14),
-            ),
+            const Text('Setelah ubah username, kamu akan diminta login ulang.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 14)),
             const SizedBox(height: 24),
-            _buildBottomSheetTextField(
+            _buildTextField(
               controller: _newUsernameCtrl,
               labelText: 'Username Baru',
               prefixIcon: Icons.person_outline,
@@ -236,15 +250,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ElevatedButton(
                 onPressed: _isChangingUsername ? null : _changeUsername,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D8B6F),
+                  backgroundColor: AppColors.primary,
                   elevation: 0,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: _isChangingUsername
-                    ? const SizedBox(height: 20, width: 20,
-                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5))
+                    ? const SizedBox(
+                        height: 20, width: 20,
+                        child: CircularProgressIndicator(
+                            color: Colors.white, strokeWidth: 2.5))
                     : const Text('Simpan Username',
-                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 15)),
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15)),
               ),
             ),
           ],
@@ -259,12 +279,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1A1A1A))),
-        content: const Text('Yakin ingin keluar?', style: TextStyle(color: Color(0xFF555555))),
+        title: const Text('Logout',
+            style: TextStyle(
+                fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
+        content: const Text('Yakin ingin keluar?',
+            style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Batal', style: TextStyle(color: Color(0xFF8899A6), fontWeight: FontWeight.bold)),
+            child: const Text('Batal',
+                style: TextStyle(
+                    color: AppColors.textMuted, fontWeight: FontWeight.bold)),
           ),
           TextButton(
             onPressed: () {
@@ -275,8 +300,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 (_) => false,
               );
             },
-            style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)), // Soft red
-            child: const Text('Logout', style: TextStyle(fontWeight: FontWeight.bold)),
+            style: TextButton.styleFrom(foregroundColor: AppColors.error),
+            child: const Text('Logout',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -286,41 +312,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5DC), // Cream beige background
+      backgroundColor: AppColors.background,
       body: CustomScrollView(
         slivers: [
-          // ─── Header ────────────────────────────────
           SliverAppBar(
             expandedHeight: 220,
             pinned: true,
-            backgroundColor: const Color(0xFF2D8B6F), // Deep green
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             elevation: 0,
+            automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               background: Container(
-                color: const Color(0xFF2D8B6F),
+                color: AppColors.primary,
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     const SizedBox(height: 40),
                     Container(
-                      padding: const EdgeInsets.all(4), // Memberikan efek border tipis
+                      padding: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         color: Colors.white.withValues(alpha: 0.2),
                       ),
                       child: CircleAvatar(
                         radius: 44,
-                        backgroundColor: const Color(0xFFF5F5DC), // Cream color avatar
+                        backgroundColor: AppColors.background,
                         child: Text(
                           widget.username.isNotEmpty
                               ? widget.username[0].toUpperCase()
                               : '?',
                           style: const TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2D8B6F), // Deep green text
-                          ),
+                              fontSize: 36,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary),
                         ),
                       ),
                     ),
@@ -328,11 +353,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Text(
                       widget.username,
                       style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.white,
-                        letterSpacing: 0.5,
-                      ),
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                          letterSpacing: 0.5),
                     ),
                   ],
                 ),
@@ -346,18 +370,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // ─── Pengaturan Akun ───────────────
-                  const Text(
-                    'Pengaturan Akun',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF8899A6),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                  const Text('Pengaturan Akun',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 12),
-
                   _menuCard(
                     icon: Icons.person_outline,
                     label: 'Ubah Username',
@@ -368,25 +387,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     label: 'Ubah Password',
                     onTap: _showChangePasswordSheet,
                   ),
-
                   const SizedBox(height: 28),
-                  
-                  // ─── Lainnya ───────────────────────
-                  const Text(
-                    'Lainnya',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: Color(0xFF8899A6),
-                      letterSpacing: 0.5,
-                    ),
-                  ),
+                  const Text('Lainnya',
+                      style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.textMuted,
+                          letterSpacing: 0.5)),
                   const SizedBox(height: 12),
-
                   _menuCard(
                     icon: Icons.logout_rounded,
                     label: 'Logout',
-                    color: const Color(0xFFDC2626), // Soft red
+                    color: AppColors.error,
                     onTap: _showLogoutDialog,
                   ),
                 ],
@@ -402,7 +414,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required IconData icon,
     required String label,
     required VoidCallback onTap,
-    Color color = const Color(0xFF2D8B6F), // Default deep green
+    Color color = AppColors.primary,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -412,7 +424,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFFE8E8E8)),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [
@@ -425,18 +437,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Icon(icon, color: color, size: 20),
             ),
             const SizedBox(width: 16),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: color == const Color(0xFFDC2626)
-                    ? const Color(0xFFDC2626)
-                    : const Color(0xFF1A1A1A),
-              ),
-            ),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: color == AppColors.error
+                        ? AppColors.error
+                        : AppColors.textPrimary)),
             const Spacer(),
-            Icon(Icons.chevron_right_rounded, color: const Color(0xFF8899A6).withValues(alpha: 0.5), size: 24),
+            Icon(Icons.chevron_right_rounded,
+                color: AppColors.textMuted.withValues(alpha: 0.5), size: 24),
           ],
         ),
       ),

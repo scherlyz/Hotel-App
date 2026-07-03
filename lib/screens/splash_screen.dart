@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
+import '../main.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -11,7 +12,6 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-
   late AnimationController _controller;
   late Animation<double> _fadeAnimation;
   late Animation<double> _scaleAnimation;
@@ -19,37 +19,15 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1400),
       vsync: this,
     );
-
-    _fadeAnimation = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeInOut,
+    _fadeAnimation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
+    _scaleAnimation = Tween<double>(begin: 0.9, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
-
-    _scaleAnimation = Tween<double>(
-      begin: 0.9,
-      end: 1,
-    ).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: Curves.easeOutBack,
-      ),
-    );
-
     _controller.forward();
-  }
-
-  void _goToLogin() {
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const LoginScreen(),
-      ),
-    );
   }
 
   @override
@@ -58,21 +36,33 @@ class _SplashScreenState extends State<SplashScreen>
     super.dispose();
   }
 
+  void _continueAsGuest() {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const MainScreen(username: 'Guest', isGuest: true),
+      ),
+    );
+  }
+
+  void _goToLogin() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-
-          /// Background Image
           Positioned.fill(
             child: Image.asset(
-              'lib/assets/images/splash_hotel.jpg', // Ganti jika assets di root
+              'lib/assets/images/splash_hotel.jpg',
               fit: BoxFit.cover,
             ),
           ),
-
-          /// Dark Overlay
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -80,32 +70,26 @@ class _SplashScreenState extends State<SplashScreen>
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    Colors.black.withOpacity(.25),
-                    Colors.black.withOpacity(.35),
-                    Colors.black.withOpacity(.55),
-                    Colors.black.withOpacity(.75),
+                    Colors.black.withValues(alpha: .25),
+                    Colors.black.withValues(alpha: .35),
+                    Colors.black.withValues(alpha: .55),
+                    Colors.black.withValues(alpha: .75),
                   ],
                 ),
               ),
             ),
           ),
-
           SafeArea(
             child: FadeTransition(
               opacity: _fadeAnimation,
               child: ScaleTransition(
                 scale: _scaleAnimation,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 28,
-                    vertical: 24,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-
                       const SizedBox(height: 40),
-
                       RichText(
                         text: TextSpan(
                           style: const TextStyle(
@@ -115,18 +99,12 @@ class _SplashScreenState extends State<SplashScreen>
                             height: 1.05,
                           ),
                           children: [
-
-                            const TextSpan(
-                              text: "Connect\nWith\nThe ",
-                            ),
-
+                            const TextSpan(text: "Connect\nWith\nThe "),
                             WidgetSpan(
                               alignment: PlaceholderAlignment.middle,
                               child: Container(
                                 padding: const EdgeInsets.symmetric(
-                                  horizontal: 14,
-                                  vertical: 6,
-                                ),
+                                    horizontal: 14, vertical: 6),
                                 decoration: BoxDecoration(
                                   color: const Color(0xff1F8A70),
                                   borderRadius: BorderRadius.circular(12),
@@ -141,71 +119,59 @@ class _SplashScreenState extends State<SplashScreen>
                                 ),
                               ),
                             ),
-
-                            const TextSpan(
-                              text: "\nJourney",
-                            ),
+                            const TextSpan(text: "\nJourney"),
                           ],
                         ),
                       ),
-
                       const Spacer(),
-
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-
-                          Expanded(
-                            child: Text(
-                              "Discover the best hotels around you.\nFind your perfect stay quickly\nand comfortably.",
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(.95),
-                                fontSize: 15,
-                                height: 1.6,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ),
-
-                          const SizedBox(width: 18),
-
-                          InkWell(
-                            borderRadius: BorderRadius.circular(100),
-                            onTap: _goToLogin,
-                            child: Container(
-                              width: 92,
-                              height: 92,
-                              decoration: BoxDecoration(
-                                color: AppColors.primary,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.white,
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: AppColors.primary.withOpacity(.45),
-                                    blurRadius: 25,
-                                    spreadRadius: 4,
-                                  ),
-                                ],
-                              ),
-                              child: const Center(
-                                child: Text(
-                                  "START",
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 15,
-                                    letterSpacing: 1.5,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                      Text(
+                        "Discover the best hotels around you.\nFind your perfect stay quickly\nand comfortably.",
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: .95),
+                          fontSize: 15,
+                          height: 1.6,
+                        ),
                       ),
+                      const SizedBox(height: 28),
 
+                      // ─── Login / Daftar ───────────────────────
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: _goToLogin,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text('Login / Daftar',
+                              style: TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w700)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+
+                      // ─── Lanjut sebagai Tamu ──────────────────
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton(
+                          onPressed: _continueAsGuest,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: const BorderSide(
+                                color: Colors.white54, width: 1.5),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                          ),
+                          child: const Text('Lanjut sebagai Tamu',
+                              style: TextStyle(
+                                  fontSize: 15, fontWeight: FontWeight.w500)),
+                        ),
+                      ),
                       const SizedBox(height: 25),
                     ],
                   ),
