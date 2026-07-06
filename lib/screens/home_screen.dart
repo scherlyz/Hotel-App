@@ -12,6 +12,8 @@ class HomeScreen extends StatefulWidget {
   final bool isGuest;
   final double? userLat;
   final double? userLng;
+  final String locationText;
+  final bool locationLoading;
 
   const HomeScreen({
     super.key,
@@ -20,6 +22,8 @@ class HomeScreen extends StatefulWidget {
     this.isGuest = false,
     this.userLat,
     this.userLng,
+    this.locationText = 'Getting location...',
+    this.locationLoading = true,
   });
 
   @override
@@ -27,10 +31,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const String _heroImageUrl = 'lib/assets/images/hero_bg.jpg';
+
   List<Place> _allPlaces = [];
   List<Place> _filteredPlaces = [];
-  final List<String> _filters = ['Semua', 'Hotel Terdekat', 'Harga Termurah'];
-  String _selectedFilter = 'Semua';
+  final List<String> _filters = ['All', 'Nearby', 'Cheapest'];
+  String _selectedFilter = 'All';
   Set<int> _favoriteIds = {};
   bool _isLoading = true;
   String? _error;
@@ -58,10 +64,9 @@ class _HomeScreenState extends State<HomeScreen> {
         _allPlaces = data.map((e) => Place.fromJson(e)).toList();
         _filteredPlaces = List.from(_allPlaces);
       } else {
-        _error = placesResult['message'] ?? 'Gagal memuat data';
+        _error = placesResult['message'] ?? 'Failed to load data';
       }
 
-      // Hanya fetch favorites kalau bukan guest
       if (!widget.isGuest) {
         final favResult = await ApiService.getFavorites(widget.username);
         if (!mounted) return;
@@ -75,7 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       _filterPlaces();
     } catch (e) {
-      _error = 'Gagal memuat data: $e';
+      _error = 'Failed to load data: $e';
     }
     if (mounted) setState(() => _isLoading = false);
   }
@@ -117,9 +122,9 @@ class _HomeScreenState extends State<HomeScreen> {
             p.address.toLowerCase().contains(query);
       }).toList();
 
-      if (_selectedFilter == 'Harga Termurah') {
+      if (_selectedFilter == 'Cheapest') {
         _filteredPlaces.sort((a, b) => a.priceMin.compareTo(b.priceMin));
-      } else if (_selectedFilter == 'Hotel Terdekat') {
+      } else if (_selectedFilter == 'Nearby') {
         if (widget.userLat != null && widget.userLng != null) {
           _filteredPlaces.sort((a, b) {
             final dA = _distanceKm(a.lat, a.lng, widget.userLat!, widget.userLng!);
@@ -132,7 +137,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _toggleFavorite(Place place) async {
-    // Guest → arahkan ke login
     if (widget.isGuest) {
       _showLoginPrompt();
       return;
@@ -155,14 +159,14 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (_) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Login Diperlukan',
+        title: const Text('Login Required',
             style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.textPrimary)),
-        content: const Text('Login untuk menyimpan favorit dan mengakses fitur lengkap.',
+        content: const Text('Login to save favorites and access full features.',
             style: TextStyle(color: AppColors.textSecondary)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Nanti',
+            child: const Text('Later',
                 style: TextStyle(color: AppColors.textMuted, fontWeight: FontWeight.bold)),
           ),
           TextButton(
@@ -179,209 +183,509 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: AppColors.background,
-      child: Column(
-        children: [
-          // ─── Search Bar ──────────────────────────────
-          Container(
-            margin: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (_) => _filterPlaces(),
-              style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
-              decoration: const InputDecoration(
-                hintText: 'Cari tempat wisata atau hotel...',
-                hintStyle: TextStyle(color: AppColors.textHint, fontSize: 14),
-                prefixIcon:
-                    Icon(Icons.search_rounded, color: AppColors.primary, size: 22),
-                border: InputBorder.none,
-                contentPadding:
-                    EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              ),
-            ),
-          ),
+  List<Place> get _topPlaces {
+    final sorted = List<Place>.from(_allPlaces)
+      ..sort((a, b) => b.rating.compareTo(a.rating));
+    return sorted.take(5).toList();
+  }
 
-          // ─── Filter Pills ────────────────────────────
-          SizedBox(
-            height: 64,
-            child: ListView.separated(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-              scrollDirection: Axis.horizontal,
-              itemCount: _filters.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 10),
-              itemBuilder: (_, i) {
-                final name = _filters[i];
-                final selected = name == _selectedFilter;
-                final isDisabled =
-                    name == 'Hotel Terdekat' && widget.userLat == null;
-                return GestureDetector(
-                  onTap: isDisabled
-                      ? () => ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                  'Izinkan akses lokasi untuk menggunakan filter ini'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          )
-                      : () {
-                          setState(() => _selectedFilter = name);
-                          _filterPlaces();
-                        },
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isDisabled
-                          ? const Color(0xFFF5F5F5)
-                          : selected
-                              ? AppColors.primary
-                              : Colors.white,
-                      borderRadius: BorderRadius.circular(24),
-                      border: Border.all(
-                        color: isDisabled
-                            ? AppColors.border
-                            : selected
-                                ? AppColors.primary
-                                : AppColors.border,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        if (name == 'Hotel Terdekat') ...[
-                          Icon(Icons.location_on_rounded,
-                              size: 14,
-                              color: isDisabled
-                                  ? const Color(0xFFCCCCCC)
-                                  : selected
-                                      ? Colors.white
-                                      : AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                        ],
-                        if (name == 'Harga Termurah') ...[
-                          Icon(Icons.attach_money_rounded,
-                              size: 14,
-                              color: selected
-                                  ? Colors.white
-                                  : AppColors.textSecondary),
-                          const SizedBox(width: 4),
-                        ],
-                        Text(
-                          name,
-                          style: TextStyle(
-                            color: isDisabled
-                                ? const Color(0xFFCCCCCC)
-                                : selected
-                                    ? Colors.white
-                                    : AppColors.textSecondary,
-                            fontWeight:
-                                selected ? FontWeight.w600 : FontWeight.w500,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+  // ─── Hero header: gambar + overlay + greeting + search bar ────────────
+  Widget _buildHeroHeader() {
+    return ClipRRect(
+      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: Image.asset(
+              _heroImageUrl,
+              fit: BoxFit.cover,
+              errorBuilder: (_, error, __) {
+                debugPrint('Hero image failed: $error');
+                return Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [AppColors.primary, Color(0xFF0F2E28)],
                     ),
                   ),
                 );
               },
             ),
           ),
-
-          // ─── Jumlah hasil ────────────────────────────
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 4),
-            child: Row(
-              children: [
-                Text(
-                  '${_filteredPlaces.length} tempat ditemukan',
-                  style: const TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500),
+          Positioned.fill(
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withValues(alpha: .35),
+                    Colors.black.withValues(alpha: .55),
+                    Colors.black.withValues(alpha: .78),
+                  ],
                 ),
-                if (_selectedFilter != 'Semua') ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {
-                      setState(() => _selectedFilter = 'Semua');
-                      _filterPlaces();
-                    },
-                    child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              ),
+            ),
+          ),
+          Padding(
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 20,
+              left: 24,
+              right: 24,
+              bottom: 40,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 44,
+                      height: 44,
                       decoration: BoxDecoration(
-                        color: AppColors.primaryLight,
-                        borderRadius: BorderRadius.circular(8),
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: .18),
+                        border:
+                            Border.all(color: Colors.white.withValues(alpha: .4)),
                       ),
-                      child: Row(
+                      child: Center(
+                        child: Text(
+                          widget.username.isNotEmpty
+                              ? widget.username[0].toUpperCase()
+                              : '?',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 17),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(_selectedFilter,
-                              style: const TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 3),
-                          const Icon(Icons.close,
-                              size: 11, color: AppColors.primary),
+                          Row(
+                            children: [
+                              const Text('Hi, ',
+                                  style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w500)),
+                              Flexible(
+                                child: Text(
+                                  widget.username,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              if (widget.isAdmin) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: Colors.amber,
+                                      borderRadius: BorderRadius.circular(8)),
+                                  child: const Text('Admin',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.black87)),
+                                ),
+                              ],
+                              if (widget.isGuest) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 7, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: Colors.white24,
+                                      borderRadius: BorderRadius.circular(8)),
+                                  child: const Text('Guest',
+                                      style: TextStyle(
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white70)),
+                                ),
+                              ],
+                            ],
+                          ),
+                          const SizedBox(height: 3),
+                          Row(
+                            children: [
+                              const Icon(Icons.location_on_rounded,
+                                  color: Colors.white70, size: 13),
+                              const SizedBox(width: 4),
+                              Expanded(
+                                child: widget.locationLoading
+                                    ? const Text('Getting location...',
+                                        style: TextStyle(
+                                            color: Colors.white70, fontSize: 12))
+                                    : Text(widget.locationText,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500)),
+                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
 
-          // ─── List Tempat ─────────────────────────────
+  // ─── Search bar — dibuat overlap: separuh di header, separuh di body ──
+  Widget _buildSearchBar() {
+    return Container(
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(100),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .12),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Icon(Icons.search_rounded,
+              color: AppColors.primary, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (_) => _filterPlaces(),
+              textAlignVertical: TextAlignVertical.center,
+              style: const TextStyle(
+                  fontSize: 15, color: AppColors.textPrimary, height: 1.0),
+              decoration: const InputDecoration(
+                isCollapsed: true,
+                hintText: 'Search places or hotels...',
+                hintStyle: TextStyle(
+                    color: AppColors.textHint, fontSize: 14, height: 1.0),
+                border: InputBorder.none,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF3F4F6),
+      child: Column(
+        children: [
+          // Header & search bar ditumpuk: search bar setengah menempel
+          // di bagian bawah header (foto), setengah lagi di area putih.
+          Stack(
+            clipBehavior: Clip.none,
+            children: [
+              _buildHeroHeader(),
+              Positioned(
+                left: 24,
+                right: 24,
+                bottom: -26, // setengah tinggi search bar (52 / 2)
+                child: _buildSearchBar(),
+              ),
+            ],
+          ),
+          const SizedBox(height: 38), // beri jarak setelah bagian search bar yang menggantung
+
           Expanded(
             child: _isLoading
                 ? const Center(
                     child: CircularProgressIndicator(color: AppColors.primary))
                 : _error != null
                     ? _buildError()
-                    : _filteredPlaces.isEmpty
-                        ? _buildEmpty()
-                        : RefreshIndicator(
-                            onRefresh: _loadData,
-                            color: AppColors.primary,
-                            backgroundColor: Colors.white,
-                            child: ListView.builder(
+                    : RefreshIndicator(
+                        onRefresh: _loadData,
+                        color: AppColors.primary,
+                        backgroundColor: Colors.white,
+                        child: ListView(
+                          padding: const EdgeInsets.only(top: 16, bottom: 24),
+                          children: [
+                            // ─── Filter Pills (di atas Rekomendasi) ─────
+                            SizedBox(
+                              height: 48,
+                              child: ListView.separated(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 24),
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _filters.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(width: 10),
+                                itemBuilder: (_, i) {
+                                  final name = _filters[i];
+                                  final selected = name == _selectedFilter;
+                                  final isDisabled = name == 'Nearby' &&
+                                      widget.userLat == null;
+                                  return GestureDetector(
+                                    onTap: isDisabled
+                                        ? () => ScaffoldMessenger.of(context)
+                                                .showSnackBar(
+                                              const SnackBar(
+                                                content: Text(
+                                                    'Allow location access to use this filter'),
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                              ),
+                                            )
+                                        : () {
+                                            setState(
+                                                () => _selectedFilter = name);
+                                            _filterPlaces();
+                                          },
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 200),
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 18, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: isDisabled
+                                            ? const Color(0xFFF0F0F0)
+                                            : selected
+                                                ? AppColors.primary
+                                                : Colors.white,
+                                        borderRadius:
+                                            BorderRadius.circular(24),
+                                        boxShadow: selected
+                                            ? [
+                                                BoxShadow(
+                                                  color: AppColors.primary
+                                                      .withValues(alpha: .25),
+                                                  blurRadius: 14,
+                                                  offset: const Offset(0, 6),
+                                                ),
+                                              ]
+                                            : null,
+                                        border: selected
+                                            ? null
+                                            : Border.all(
+                                                color: AppColors.border),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          if (name == 'Nearby') ...[
+                                            Icon(Icons.location_on_rounded,
+                                                size: 14,
+                                                color: isDisabled
+                                                    ? const Color(0xFFCCCCCC)
+                                                    : selected
+                                                        ? Colors.white
+                                                        : AppColors
+                                                            .textSecondary),
+                                            const SizedBox(width: 4),
+                                          ],
+                                          if (name == 'Cheapest') ...[
+                                            Icon(Icons.attach_money_rounded,
+                                                size: 14,
+                                                color: selected
+                                                    ? Colors.white
+                                                    : AppColors.textSecondary),
+                                            const SizedBox(width: 4),
+                                          ],
+                                          Text(
+                                            name,
+                                            style: TextStyle(
+                                              color: isDisabled
+                                                  ? const Color(0xFFCCCCCC)
+                                                  : selected
+                                                      ? Colors.white
+                                                      : AppColors.textSecondary,
+                                              fontWeight: selected
+                                                  ? FontWeight.w600
+                                                  : FontWeight.w500,
+                                              fontSize: 13,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+
+                            const SizedBox(height: 24),
+
+                            // ─── Section: Recommendation (carousel) ──
+                            if (_topPlaces.isNotEmpty) ...[
+                              const Padding(
+                                padding:
+                                    EdgeInsets.symmetric(horizontal: 24),
+                                child: Text(
+                                  'Recommended for You',
+                                  style: TextStyle(
+                                    color: AppColors.textPrimary,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                              SizedBox(
+                                height: 230,
+                                child: ListView.separated(
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 24),
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _topPlaces.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(width: 14),
+                                  itemBuilder: (_, i) {
+                                    final place = _topPlaces[i];
+                                    return SizedBox(
+                                      width: 210,
+                                      child: PlaceCard(
+                                        place: place,
+                                        isFavorite: !widget.isGuest &&
+                                            _favoriteIds.contains(place.id),
+                                        onFavoriteTap: () =>
+                                            _toggleFavorite(place),
+                                        onTap: () => Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => DetailScreen(
+                                              placeId: place.id,
+                                              username: widget.username,
+                                              isGuest: widget.isGuest,
+                                            ),
+                                          ),
+                                        ).then((_) => _reloadFavorites()),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 28),
+                            ],
+
+                            // ─── Jumlah hasil ────────────────────────
+                            Padding(
                               padding:
-                                  const EdgeInsets.fromLTRB(24, 8, 24, 24),
-                              itemCount: _filteredPlaces.length,
-                              itemBuilder: (_, i) {
-                                final place = _filteredPlaces[i];
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: PlaceCard(
-                                    place: place,
-                                    isFavorite: !widget.isGuest &&
-                                        _favoriteIds.contains(place.id),
-                                    onFavoriteTap: () =>
-                                        _toggleFavorite(place),
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (_) => DetailScreen(
-                                          placeId: place.id,
-                                          username: widget.username,
-                                          isGuest: widget.isGuest,
+                                  const EdgeInsets.symmetric(horizontal: 24),
+                              child: Row(
+                                children: [
+                                  const Text(
+                                    'Discover More Places',
+                                    style: TextStyle(
+                                      color: AppColors.textPrimary,
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${_filteredPlaces.length} found',
+                                    style: const TextStyle(
+                                        color: AppColors.textMuted,
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w500),
+                                  ),
+                                  if (_selectedFilter != 'All') ...[
+                                    const SizedBox(width: 8),
+                                    GestureDetector(
+                                      onTap: () {
+                                        setState(
+                                            () => _selectedFilter = 'All');
+                                        _filterPlaces();
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 8, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primaryLight,
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          children: [
+                                            Text(_selectedFilter,
+                                                style: const TextStyle(
+                                                    fontSize: 11,
+                                                    color: AppColors.primary,
+                                                    fontWeight:
+                                                        FontWeight.w600)),
+                                            const SizedBox(width: 3),
+                                            const Icon(Icons.close,
+                                                size: 11,
+                                                color: AppColors.primary),
+                                          ],
                                         ),
                                       ),
-                                    ).then((_) => _reloadFavorites()),
-                                  ),
-                                );
-                              },
+                                    ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ),
+
+                            const SizedBox(height: 12),
+
+                            // ─── List Lengkap (vertikal) ──────────────
+                            _filteredPlaces.isEmpty
+                                ? Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 40),
+                                    child: _buildEmpty(),
+                                  )
+                                : Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 24),
+                                    child: Column(
+                                      children: _filteredPlaces.map((place) {
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                              bottom: 16),
+                                          child: PlaceCard(
+                                            place: place,
+                                            isFavorite: !widget.isGuest &&
+                                                _favoriteIds
+                                                    .contains(place.id),
+                                            onFavoriteTap: () =>
+                                                _toggleFavorite(place),
+                                            onTap: () => Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => DetailScreen(
+                                                  placeId: place.id,
+                                                  username: widget.username,
+                                                  isGuest: widget.isGuest,
+                                                ),
+                                              ),
+                                            ).then(
+                                                (_) => _reloadFavorites()),
+                                          ),
+                                        );
+                                      }).toList(),
+                                    ),
+                                  ),
+                          ],
+                        ),
+                      ),
           ),
         ],
       ),
@@ -402,7 +706,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ElevatedButton.icon(
             onPressed: _loadData,
             icon: const Icon(Icons.refresh, size: 20),
-            label: const Text('Coba lagi',
+            label: const Text('Try Again',
                 style: TextStyle(fontWeight: FontWeight.w600)),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primary,
@@ -426,7 +730,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           Icon(Icons.search_off, size: 56, color: AppColors.textMuted),
           SizedBox(height: 16),
-          Text('Tidak ada tempat yang ditemukan',
+          Text('No places found',
               style: TextStyle(
                   color: AppColors.textMuted,
                   fontSize: 15,

@@ -57,5 +57,27 @@ class AppTheme {
             borderSide: const BorderSide(color: Color(0xFF2D8B6F), width: 2),
           ),
         ),
-      );
+        navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        indicatorColor: const Color(0xFF2D8B6F).withOpacity(0.15),
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysHide,
+        iconTheme: WidgetStateProperty.resolveWith<IconThemeData>(
+          (states) {
+            if (states.contains(WidgetState.selected)) {
+              return const IconThemeData(
+                color: Color(0xFF2D8B6F),
+                size: 28,
+              );
+            }
+
+            return const IconThemeData(
+              color: Color(0xFF2D8B6F),
+              size: 24,
+            );
+          },
+        ),
+      ),
+            );
+      
 }

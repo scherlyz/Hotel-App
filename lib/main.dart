@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:ui';
 import 'package:geocoding/geocoding.dart';
 import 'screens/home_screen.dart';
 import 'screens/favorites_screen.dart';
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Wisata & Hotel App',
+      title: 'Travel & Hotel App',
       debugShowCheckedModeBanner: false,
       navigatorObservers: [FavoritesScreen.routeObserver],
       theme: AppTheme.theme,
@@ -47,7 +48,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
-  String _locationText = 'Mendapatkan lokasi...';
+  String _locationText = 'Getting location...';
   bool _locationLoading = true;
   double? _userLat;
   double? _userLng;
@@ -65,7 +66,7 @@ class _MainScreenState extends State<MainScreen> {
       final coords = await getLocation();
       if (coords == null) {
         setState(() {
-          _locationText = 'Izin lokasi ditolak';
+          _locationText = 'Location permission denied';
           _locationLoading = false;
         });
         return;
@@ -82,7 +83,7 @@ class _MainScreenState extends State<MainScreen> {
             if (p.locality != null && p.locality!.isNotEmpty) p.locality,
           ];
           setState(() {
-            _locationText = parts.isNotEmpty ? parts.join(', ') : 'Lokasi ditemukan';
+            _locationText = parts.isNotEmpty ? parts.join(', ') : 'Location found';
             _locationLoading = false;
           });
         }
@@ -94,13 +95,13 @@ class _MainScreenState extends State<MainScreen> {
       }
     } catch (_) {
       setState(() {
-        _locationText = 'Gagal mendapatkan lokasi';
+        _locationText = 'Failed to get location';
         _locationLoading = false;
       });
     }
   }
 
-  // ─── Screens ──────────────────────────────────────────────────────────────
+  // ─── Screens ──────────────────────────────────────────────────────────
 
   List<Widget> get _screens {
     final home = HomeScreen(
@@ -109,165 +110,119 @@ class _MainScreenState extends State<MainScreen> {
       isGuest: _isGuest,
       userLat: _userLat,
       userLng: _userLng,
+      locationText: _locationText,
+      locationLoading: _locationLoading,
     );
 
     if (widget.isAdmin) {
-      return [home, const AdminScreen(), ProfileScreen(username: widget.username, isGuest: false)];
+      return [
+        home,
+        FavoritesScreen(
+          username: widget.username,
+          isGuest: false,
+          onBackToHome: () => setState(() => _currentIndex = 0),
+        ),
+        const AdminScreen(),
+        ProfileScreen(username: widget.username, isGuest: false),
+      ];
     }
-    return [home, _isGuest ? const _GuestProfilePrompt() : ProfileScreen(username: widget.username, isGuest: false)];
+
+    return [
+      home,
+      FavoritesScreen(
+        username: widget.username,
+        isGuest: _isGuest,
+        onBackToHome: () => setState(() => _currentIndex = 0),
+      ),
+      _isGuest
+          ? const _GuestProfilePrompt()
+          : ProfileScreen(username: widget.username, isGuest: false),
+    ];
   }
 
-  List<NavigationDestination> get _destinations => widget.isAdmin
-      ? const [
-          NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Jelajahi'),
-          NavigationDestination(icon: Icon(Icons.admin_panel_settings_outlined), selectedIcon: Icon(Icons.admin_panel_settings), label: 'Input Data'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
-        ]
-      : const [
-          NavigationDestination(icon: Icon(Icons.explore_outlined), selectedIcon: Icon(Icons.explore), label: 'Jelajahi'),
-          NavigationDestination(icon: Icon(Icons.person_outline), selectedIcon: Icon(Icons.person), label: 'Profil'),
-        ];
-
-  // ─── Build ────────────────────────────────────────────────────────────────
+  // ─── Build ──────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBody: true,
       backgroundColor: AppColors.background,
-      body: Column(
+      body: Stack(
         children: [
-          if (_currentIndex == 0) _buildHeader(),
-          Expanded(child: _screens[_currentIndex]),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (i) => setState(() => _currentIndex = i),
-        backgroundColor: Colors.white,
-        indicatorColor: AppColors.primary.withValues(alpha: 0.15),
-        destinations: _destinations,
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Container(
-      padding: EdgeInsets.only(
-        top: MediaQuery.of(context).padding.top + 16,
-        left: 20, right: 20, bottom: 16,
-      ),
-      decoration: const BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.vertical(bottom: Radius.circular(24)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Text('Halo, ',
-                        style: TextStyle(color: Colors.white70, fontSize: 15)),
-                    Text(widget.username,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold)),
-                    if (widget.isAdmin) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: Colors.amber,
-                            borderRadius: BorderRadius.circular(8)),
-                        child: const Text('Admin',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black87)),
-                      ),
-                    ],
-                    if (_isGuest) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                        decoration: BoxDecoration(
-                            color: Colors.white24,
-                            borderRadius: BorderRadius.circular(8)),
-                        child: const Text('Tamu',
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white70)),
-                      ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on_rounded, color: Colors.white, size: 15),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: _locationLoading
-                          ? const Row(children: [
-                              SizedBox(
-                                width: 12, height: 12,
-                                child: CircularProgressIndicator(
-                                    color: Colors.white70, strokeWidth: 2),
-                              ),
-                              SizedBox(width: 6),
-                              Text('Mendapatkan lokasi...',
-                                  style: TextStyle(color: Colors.white70, fontSize: 13)),
-                            ])
-                          : Text(_locationText,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
-              ],
-            ),
+          Positioned.fill(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 250),
+            child: _screens[_currentIndex],
           ),
+        ),
 
-          // ─── Tombol Favorit ───────────────────────────
-          GestureDetector(
-            onTap: () async {
-              // Guest tetap bisa buka FavoritesScreen (tapi akan tampil kosong + prompt login)
-              await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => FavoritesScreen(
-                    username: widget.username,
-                    isGuest: _isGuest,
-                  ),
-                ),
-              );
-              setState(() {});
-            },
-            child: Container(
-              padding: const EdgeInsets.all(10),
+          // Floating glass navbar
+          Positioned(
+          left: 0,
+              right: 0,
+              bottom: 24,
+              child: SafeArea(
+                top: false,
+                child: Center(
+                  child: SizedBox(
+                    width: 320,
+                    child: Container(
+              height: 72,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
-                shape: BoxShape.circle,
+                color: AppColors.primary.withValues(alpha: .85), // hijau, transparan dikit
+                borderRadius: BorderRadius.circular(36),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppColors.primary.withValues(alpha: .35),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.favorite_rounded, color: Colors.white, size: 22),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _navItem(Icons.home_rounded, 0),
+                  _navItem(Icons.favorite_rounded, 1),
+                  if (widget.isAdmin) _navItem(Icons.add_business_rounded, 2),
+                  _navItem(Icons.person_rounded, widget.isAdmin ? 3 : 2),
+                ],
+              ),
             ),
-          ),
+      ),
+    ),
+  ),
+),
         ],
       ),
     );
   }
+Widget _navItem(IconData icon, int index) {
+  final selected = _currentIndex == index;
+
+  return InkWell(
+    borderRadius: BorderRadius.circular(32),
+    onTap: () => setState(() => _currentIndex = index),
+    child: AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: 56,
+      height: 56,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? Colors.white : Colors.transparent, // solid putih, bukan transparan/blur
+      ),
+      child: Icon(
+        icon,
+        color: selected ? AppColors.primary : Colors.white,
+        size: 30,
+      ),
+    ),
+  );
+}
 }
 
-// ─── Guest Profile Prompt ─────────────────────────────────────────────────
+// ─── Guest Profile Prompt ─────────────────────────────────────────────
 class _GuestProfilePrompt extends StatelessWidget {
   const _GuestProfilePrompt();
 
@@ -291,14 +246,14 @@ class _GuestProfilePrompt extends StatelessWidget {
                     size: 56, color: AppColors.primary),
               ),
               const SizedBox(height: 24),
-              const Text('Belum Login',
+              const Text('Not Logged In',
                   style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: AppColors.textPrimary)),
               const SizedBox(height: 10),
               const Text(
-                'Login untuk mengakses profil,\nmenyimpan favorit, dan menulis ulasan.',
+                'Login to access your profile,\nsave favorites, and write reviews.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 14, color: AppColors.textMuted, height: 1.6),
@@ -319,7 +274,7 @@ class _GuestProfilePrompt extends StatelessWidget {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                   ),
-                  child: const Text('Login / Daftar',
+                  child: const Text('Login / Sign Up',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                 ),

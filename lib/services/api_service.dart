@@ -10,8 +10,18 @@ class ApiService {
 
   static const String _proxyUrl = 'https://corsproxy.io/?url=';
 
+  static const String _imageProxyUrl = 'https://wsrv.nl/?url=';
+
   static const int _maxRetries = 3;
   static const int _timeoutSeconds = 30;
+
+  static String resolveImageUrl(String url) {
+    if (kIsWeb && url.isNotEmpty) {
+      return '$_imageProxyUrl${Uri.encodeComponent(url)}';
+    }
+    return url;
+  }
+
 
   // ─── Parse Response Body ─────────────────────────────────
   static Map<String, dynamic> _parseBody(String body) {
