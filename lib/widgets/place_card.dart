@@ -84,105 +84,113 @@ class PlaceCard extends StatelessWidget {
                       )
                     : const SizedBox.shrink(),
               ),
-
-              /// GLASS INFO PANEL — setengah tinggi card, gradasi, tanpa stroke
+  
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
-                height: 130, // setengah dari height card (260)
-                child: ClipRRect(
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(26),
-                    bottomRight: Radius.circular(26),
-                  ),
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-                    child: Container(
-                      padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withValues(alpha: .05),
-                            Colors.black.withValues(alpha: .55),
-                          ],
+                height: 150, // sedikit ditambah dari 130, karena bagian atas kini fade-in
+                child: ShaderMask(
+                  shaderCallback: (rect) {
+                    return const LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.white],
+                      stops: [0.0, 0.45], // 0–45% dari tinggi panel = area transisi blur
+                    ).createShader(rect);
+                  },
+                  blendMode: BlendMode.dstIn,
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.only(
+                      bottomLeft: Radius.circular(26),
+                      bottomRight: Radius.circular(26),
+                    ),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+                      child: Container(
+                        padding: const EdgeInsets.fromLTRB(18, 16, 18, 16),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.black.withValues(alpha: .0),
+                              Colors.black.withValues(alpha: .55),
+                            ],
+                            stops: const [0.0, 0.5],
+                          ),
                         ),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            place.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 18,
-                              height: 1.2,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-
-                          // Harga — teks polos, tanpa background putih
-                          Text(
-                            place.priceRange,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.star_rounded,
-                                  color: AppColors.gold, size: 17),
-                              const SizedBox(width: 3),
-                              Text(
-                                place.rating > 0
-                                    ? place.rating.toStringAsFixed(1)
-                                    : "New",
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              place.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 18,
+                                height: 1.2,
                               ),
-                              const SizedBox(width: 10),
-                              Container(
-                                width: 3,
-                                height: 3,
-                                decoration: const BoxDecoration(
-                                  color: Colors.white70,
-                                  shape: BoxShape.circle,
-                                ),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              place.priceRange,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
                               ),
-                              const SizedBox(width: 10),
-                              const Icon(Icons.location_on_rounded,
-                                  color: Colors.white70, size: 15),
-                              const SizedBox(width: 3),
-                              Expanded(
-                                child: Text(
-                                  place.address,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.star_rounded,
+                                    color: AppColors.gold, size: 17),
+                                const SizedBox(width: 3),
+                                Text(
+                                  place.rating > 0
+                                      ? place.rating.toStringAsFixed(1)
+                                      : "New",
                                   style: const TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 12.5,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                const SizedBox(width: 10),
+                                Container(
+                                  width: 3,
+                                  height: 3,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white70,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                const Icon(Icons.location_on_rounded,
+                                    color: Colors.white70, size: 15),
+                                const SizedBox(width: 3),
+                                Expanded(
+                                  child: Text(
+                                    place.address,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 12.5,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

@@ -137,10 +137,10 @@ class _AdminScreenState extends State<AdminScreen> {
     );
   }
 
-  // ─── Card: gambar hotel + nama, trash pojok kanan atas, pencil pojok kanan bawah ─
+  // ─── Card: gambar hotel + nama, alamat, rating & harga — lebih lebar ──
   Widget _placeCard(Place place) {
     return Container(
-      height: 104,
+      height: 136,
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: const Color(0xFFEAF7EE),
@@ -169,8 +169,8 @@ class _AdminScreenState extends State<AdminScreen> {
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: SizedBox(
-                    width: 72,
-                    height: 80,
+                    width: 88,
+                    height: 112,
                     child: place.photoUrl.isNotEmpty
                         ? Image.network(
                             place.photoUrl,
@@ -211,7 +211,7 @@ class _AdminScreenState extends State<AdminScreen> {
                     children: [
                       Text(
                         place.name,
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontWeight: FontWeight.w700,
@@ -220,7 +220,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
                       ),
                       if (place.category.isNotEmpty) ...[
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Text(
                           place.category,
                           maxLines: 1,
@@ -232,6 +232,69 @@ class _AdminScreenState extends State<AdminScreen> {
                           ),
                         ),
                       ],
+                      if (place.address.isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.location_on_outlined,
+                                size: 13, color: Color(0xFF8899A6)),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                place.address,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Color(0xFF8899A6),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          const Icon(Icons.star_rounded,
+                              color: Color(0xFFD4AF37), size: 15),
+                          const SizedBox(width: 3),
+                          Text(
+                            place.rating > 0
+                                ? place.rating.toStringAsFixed(1)
+                                : 'New',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A1A1A),
+                            ),
+                          ),
+                          if (place.priceRange.isNotEmpty) ...[
+                            const SizedBox(width: 10),
+                            Container(
+                              width: 3,
+                              height: 3,
+                              decoration: const BoxDecoration(
+                                color: Color(0xFF8899A6),
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Flexible(
+                              child: Text(
+                                place.priceRange,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2D8B6F),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -288,168 +351,252 @@ class _AdminScreenState extends State<AdminScreen> {
     final bottomSafe = MediaQuery.of(context).padding.bottom;
     const navBarClearance = 70.0;
 
+    final screenHeight = MediaQuery.of(context).size.height;
+    final double headerHeight = (screenHeight * 0.22).clamp(140.0, 220.0);
+    // Ukuran awal sheet (sisa layar setelah header foto), sheet ini bisa
+    // ditarik naik untuk melihat lebih banyak, sama seperti detail_screen.
+    final double initialSheetSize =
+        (1 - (headerHeight - 16) / screenHeight).clamp(0.72, 0.9);
+    final double safeTopGap = MediaQuery.of(context).padding.top + 76;
+    final double maxSheetSize =
+        (1 - safeTopGap / screenHeight).clamp(initialSheetSize, 0.95);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ─── Back | Search bar ─────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                children: [
-                  _circleHeaderButton(
-                    icon: Icons.arrow_back_ios_new_rounded,
-                    onTap: () {
-                      if (Navigator.canPop(context)) Navigator.pop(context);
-                    },
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 44,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(100),
+      body: Stack(
+        children: [
+          // ─── Header foto — fixed di belakang (tidak ikut scroll) ─────
+          SizedBox(
+            height: headerHeight,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'lib/assets/images/hero_bg.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, error, __) => Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF2D8B6F), Color(0xFF0F2E28)],
                       ),
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: .45),
+                        Colors.black.withValues(alpha: .15),
+                        Colors.black.withValues(alpha: .55),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ─── Form: bisa ditarik naik, berisi search, judul & daftar hotel ──
+          DraggableScrollableSheet(
+            initialChildSize: initialSheetSize,
+            minChildSize: initialSheetSize,
+            maxChildSize: maxSheetSize,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: ListView(
+                  controller: scrollController,
+                  padding: EdgeInsets.zero,
+                  children: [
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE8E8E8),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ─── Search bar ─────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Container(
+                        height: 46,
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF3F4F6),
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.search_rounded,
+                                color: Color(0xFF2D8B6F), size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: TextField(
+                                controller: _searchCtrl,
+                                onChanged: (v) =>
+                                    setState(() => _searchQuery = v),
+                                textAlignVertical: TextAlignVertical.center,
+                                style: const TextStyle(
+                                    fontSize: 14, color: Color(0xFF1A1A1A)),
+                                decoration: const InputDecoration(
+                                  isCollapsed: true,
+                                  hintText: 'Cari hotel...',
+                                  hintStyle: TextStyle(
+                                      color: Color(0xFFAAAAAA), fontSize: 13),
+                                  border: InputBorder.none,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // ─── Judul halaman + tombol Tambah Tempat ────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Icon(Icons.search_rounded,
-                              color: Color(0xFF2D8B6F), size: 20),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _searchCtrl,
-                              onChanged: (v) =>
-                                  setState(() => _searchQuery = v),
-                              textAlignVertical: TextAlignVertical.center,
-                              style: const TextStyle(
-                                  fontSize: 14, color: Color(0xFF1A1A1A)),
-                              decoration: const InputDecoration(
-                                isCollapsed: true,
-                                hintText: 'Cari hotel...',
-                                hintStyle: TextStyle(
-                                    color: Color(0xFFAAAAAA), fontSize: 13),
-                                border: InputBorder.none,
+                          const Expanded(
+                            child: Text('Manage Hotels',
+                                style: TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF1A1A1A))),
+                          ),
+                          GestureDetector(
+                            onTap: () => _showFormDialog(),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2D8B6F),
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF2D8B6F)
+                                        .withValues(alpha: 0.25),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.add_location_alt_rounded,
+                                      color: Colors.white, size: 18),
+                                  SizedBox(width: 6),
+                                  Text('Tambah',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontWeight: FontWeight.w600,
+                                          fontSize: 13)),
+                                ],
                               ),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
+                    const SizedBox(height: 16),
 
-            // ─── Judul halaman + tombol Tambah Tempat ─────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Row(
-                children: [
-                  const Expanded(
-                    child: Text('Manage Hotels',
-                        style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A1A1A))),
-                  ),
-                  GestureDetector(
-                    onTap: () => _showFormDialog(),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2D8B6F),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: const Color(0xFF2D8B6F)
-                                .withValues(alpha: 0.25),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.add_location_alt_rounded,
-                              color: Colors.white, size: 18),
-                          SizedBox(width: 6),
-                          Text('Tambah',
-                              style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 13)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ─── Body ─────────────────────
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: Color(0xFF2D8B6F)))
-                  : _error != null
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(Icons.error_outline, size: 56, color: Color(0xFF8899A6)),
-                              const SizedBox(height: 12),
-                              Text(_error!, textAlign: TextAlign.center, style: const TextStyle(color: Color(0xFF8899A6))),
-                              const SizedBox(height: 16),
-                              ElevatedButton.icon(
-                                onPressed: _loadPlaces,
-                                icon: const Icon(Icons.refresh),
-                                label: const Text('Coba Lagi'),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF2D8B6F),
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                                  elevation: 0,
-                                ),
+                    // ─── Body ─────────────────────
+                    if (_isLoading)
+                      Padding(
+                        padding: EdgeInsets.only(
+                            top: screenHeight * 0.12, bottom: 24),
+                        child: const Center(
+                            child: CircularProgressIndicator(
+                                color: Color(0xFF2D8B6F))),
+                      )
+                    else if (_error != null)
+                      Padding(
+                        padding: EdgeInsets.only(top: screenHeight * 0.08),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.error_outline,
+                                size: 56, color: Color(0xFF8899A6)),
+                            const SizedBox(height: 12),
+                            Text(_error!,
+                                textAlign: TextAlign.center,
+                                style:
+                                    const TextStyle(color: Color(0xFF8899A6))),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _loadPlaces,
+                              icon: const Icon(Icons.refresh),
+                              label: const Text('Coba Lagi'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF2D8B6F),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(14)),
+                                elevation: 0,
                               ),
-                            ],
-                          ),
-                        )
-                      : RefreshIndicator(
-                          onRefresh: _loadPlaces,
-                          color: const Color(0xFF2D8B6F),
-                          backgroundColor: Colors.white,
-                          child: _filteredPlaces.isEmpty
-                              ? ListView(
-                                  physics: const AlwaysScrollableScrollPhysics(),
-                                  children: [
-                                    SizedBox(height: MediaQuery.of(context).size.height * 0.18),
-                                    Center(
-                                      child: Text(
-                                        _places.isEmpty
-                                            ? 'Belum ada data tempat.'
-                                            : 'Tidak ditemukan',
-                                        style: const TextStyle(color: Color(0xFF8899A6), fontSize: 15),
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : ListView.builder(
-                                  padding: EdgeInsets.fromLTRB(
-                                      24, 4, 24, navBarClearance + bottomSafe + 16),
-                                  itemCount: _filteredPlaces.length,
-                                  itemBuilder: (_, i) => _placeCard(_filteredPlaces[i]),
-                                ),
+                            ),
+                          ],
                         ),
+                      )
+                    else if (_filteredPlaces.isEmpty)
+                      Padding(
+                        padding: EdgeInsets.only(top: screenHeight * 0.1),
+                        child: Center(
+                          child: Text(
+                            _places.isEmpty
+                                ? 'Belum ada data tempat.'
+                                : 'Tidak ditemukan',
+                            style: const TextStyle(
+                                color: Color(0xFF8899A6), fontSize: 15),
+                          ),
+                        ),
+                      )
+                    else
+                      Padding(
+                        padding: EdgeInsets.fromLTRB(
+                            24, 0, 24, navBarClearance + bottomSafe + 16),
+                        child: Column(
+                          children: _filteredPlaces
+                              .map((p) => _placeCard(p))
+                              .toList(),
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // ─── Back button — fixed di atas foto ─────────────────────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 20,
+            child: _circleHeaderButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              onTap: () {
+                if (Navigator.canPop(context)) Navigator.pop(context);
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

@@ -21,7 +21,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   // Sama seperti hero image di HomeScreen supaya header konsisten di seluruh app.
-  static const String _heroImageUrl = 'lib/assets/images/hero_bg.jpg';
+  static const String _heroImageUrl = 'lib/assets/images/hero_bg.png';
 
   final _oldPasswordCtrl = TextEditingController();
   final _newPasswordCtrl = TextEditingController();
@@ -152,37 +152,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ─── Drag handle — dipisah dari area scroll supaya selalu terlihat & mudah ditarik
-  Widget _buildDragHandle() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      alignment: Alignment.center,
-      color: Colors.transparent,
-      child: Container(
-        width: 44,
-        height: 5,
-        decoration: BoxDecoration(
-          color: AppColors.border,
-          borderRadius: BorderRadius.circular(4),
-        ),
-      ),
-    );
-  }
-
   void _showChangePasswordSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      enableDrag: true,
-      isDismissible: true,
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.55,
         minChildSize: 0.35,
         maxChildSize: 0.92,
-        snap: true,
-        snapSizes: const [0.35, 0.55, 0.92],
         expand: false,
         builder: (context, scrollController) {
           return Container(
@@ -190,18 +168,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(
+            child: ListView(
+              controller: scrollController,
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 12,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
               children: [
-                _buildDragHandle(),
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: EdgeInsets.only(
-                      left: 24, right: 24, top: 0,
-                      bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    children: [
-                      const Text('Ubah Password',
+                  ),
+                ),
+                const Text('Ubah Password',
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -264,9 +249,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ),
               ],
-                  ),
-                ),
-              ],
             ),
           );
         },
@@ -279,14 +261,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      enableDrag: true,
-      isDismissible: true,
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.45,
         minChildSize: 0.3,
         maxChildSize: 0.85,
-        snap: true,
-        snapSizes: const [0.3, 0.45, 0.85],
         expand: false,
         builder: (context, scrollController) {
           return Container(
@@ -294,18 +272,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
               color: Colors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
             ),
-            child: Column(
+            child: ListView(
+              controller: scrollController,
+              padding: EdgeInsets.only(
+                left: 24, right: 24, top: 12,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
               children: [
-                _buildDragHandle(),
-                Expanded(
-                  child: ListView(
-                    controller: scrollController,
-                    padding: EdgeInsets.only(
-                      left: 24, right: 24, top: 0,
-                      bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    margin: const EdgeInsets.only(bottom: 20),
+                    decoration: BoxDecoration(
+                      color: AppColors.border,
+                      borderRadius: BorderRadius.circular(4),
                     ),
-                    children: [
-                      const Text('Ubah Username',
+                  ),
+                ),
+                const Text('Ubah Username',
                     style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
@@ -341,9 +326,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
                                 fontSize: 15)),
-                  ),
-                ),
-              ],
                   ),
                 ),
               ],
@@ -391,30 +373,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // ─── Hero header — sama seperti HomeScreen: gambar + overlay gradient ──
+  // ─── Hero header — foto fixed di belakang, tidak ikut scroll ──────────
   Widget _buildHeroHeader() {
-    return ClipRRect(
-      borderRadius: const BorderRadius.vertical(bottom: Radius.circular(28)),
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: Image.asset(
-              _heroImageUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, error, __) {
-                debugPrint('Hero image failed: $error');
-                return Container(
-                  decoration: const BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [AppColors.primary, Color(0xFF0F2E28)],
-                    ),
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: Image.asset(
+            _heroImageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, error, __) {
+              debugPrint('Hero image failed: $error');
+              return Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primary, Color(0xFF0F2E28)],
                   ),
-                );
-              },
-            ),
+                ),
+              );
+            },
           ),
+        ),
           Positioned.fill(
             child: Container(
               decoration: BoxDecoration(
@@ -530,23 +510,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
         ],
-      ),
-    );
+      );
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final double headerHeight = (screenHeight * 0.30).clamp(140.0, 300.0);
+    final double initialSheetSize =
+        (1 - (headerHeight - 16) / screenHeight).clamp(0.55, 0.85);
+    final double safeTopGap = MediaQuery.of(context).padding.top + 20;
+    final double maxSheetSize =
+        (1 - safeTopGap / screenHeight).clamp(initialSheetSize, 0.95);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Column(
+      body: Stack(
         children: [
-          _buildHeroHeader(),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
+          // ─── Foto hero, fixed di belakang (tidak ikut scroll) ──────
+          SizedBox(
+            height: headerHeight,
+            width: double.infinity,
+            child: _buildHeroHeader(),
+          ),
+
+          // ─── Form profil — bisa ditarik naik/turun seperti detail screen ──
+          DraggableScrollableSheet(
+            initialChildSize: initialSheetSize,
+            minChildSize: initialSheetSize,
+            maxChildSize: maxSheetSize,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: ListView(
+                  controller: scrollController,
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
+                  children: [
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
                   if (widget.isGuest) _buildGuestBanner(),
 
                   _sectionLabel('PROFIL'),
@@ -646,7 +660,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                 ],
               ),
-            ),
+              );
+            },
           ),
         ],
       ),

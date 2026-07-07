@@ -31,7 +31,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const String _heroImageUrl = 'lib/assets/images/hero_bg.jpg';
+  static const String _heroImageUrl = 'lib/assets/images/hero_bg.png';
 
   List<Place> _allPlaces = [];
   List<Place> _filteredPlaces = [];
@@ -142,7 +142,12 @@ class _HomeScreenState extends State<HomeScreen> {
       return;
     }
     final result = await ApiService.toggleFavorite(place.id, widget.username);
-    if (result['status'] == 'ok') {
+    debugPrint('toggleFavorite result: $result'); // sementara, buat cek respons asli backend
+
+    final bool success =
+        result['status'] == 'ok' || result.containsKey('favorited');
+
+    if (success) {
       setState(() {
         if (result['favorited'] == true) {
           _favoriteIds.add(place.id);
@@ -150,6 +155,14 @@ class _HomeScreenState extends State<HomeScreen> {
           _favoriteIds.remove(place.id);
         }
       });
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message']?.toString() ??
+              'Gagal memperbarui favorit'),
+          backgroundColor: AppColors.error,
+        ),
+      );
     }
   }
 
@@ -233,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
               top: MediaQuery.of(context).padding.top + 20,
               left: 24,
               right: 24,
-              bottom: 40,
+              bottom: 106,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,57 +363,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // ─── Search bar — dibuat overlap: separuh di header, separuh di body ──
-  Widget _buildSearchBar() {
-    return Container(
-      height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(100),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: .12),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Icon(Icons.search_rounded,
-              color: AppColors.primary, size: 22),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: _searchCtrl,
-              onChanged: (_) => _filterPlaces(),
-              textAlignVertical: TextAlignVertical.center,
-              style: const TextStyle(
-                  fontSize: 15, color: AppColors.textPrimary, height: 1.0),
-              decoration: const InputDecoration(
-                isCollapsed: true,
-                hintText: 'Search places or hotels...',
-                hintStyle: TextStyle(
-                    color: AppColors.textHint, fontSize: 14, height: 1.0),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Container(
       color: const Color(0xFFF3F4F6),
       child: Column(
         children: [
-          // Header & search bar ditumpuk: search bar setengah menempel
-          // di bagian bawah header (foto), setengah lagi di area putih.
+          // ─── Header + search bar (search bar menggantung setengah
+          // di bawah header, sesuai referensi) ─────────────
           Stack(
             clipBehavior: Clip.none,
             children: [
@@ -408,12 +378,62 @@ class _HomeScreenState extends State<HomeScreen> {
               Positioned(
                 left: 24,
                 right: 24,
-                bottom: -26, // setengah tinggi search bar (52 / 2)
-                child: _buildSearchBar(),
+                bottom: -16, 
+                child: Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(100),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: .08),
+                        blurRadius: 16,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      const SizedBox(
+                        height: 52,
+                        child: Icon(Icons.search_rounded,
+                            color: AppColors.primary, size: 22),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: _searchCtrl,
+                          onChanged: (_) => _filterPlaces(),
+                          textAlignVertical: TextAlignVertical.center,
+                          style: const TextStyle(
+                              fontSize: 15,
+                              color: AppColors.textPrimary,
+                              height: 1.0),
+                          decoration: const InputDecoration(
+                            isCollapsed: true,
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                            hintText: 'Search places or hotels...',
+                            hintStyle: TextStyle(
+                                color: AppColors.textHint,
+                                fontSize: 14,
+                                height: 1.0),
+                            border: InputBorder.none,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 38), // beri jarak setelah bagian search bar yang menggantung
+
+          // Ruang kosong untuk sisa search bar yang menggantung di bawah
+          // header, supaya tidak numpuk dengan konten list di bawahnya.
+          const SizedBox(height: 16 + 12),
 
           Expanded(
             child: _isLoading

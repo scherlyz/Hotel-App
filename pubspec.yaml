@@ -69,4 +69,4 @@ flutter:
   assets:
     # - assets/animations/
     - lib/assets/images/
-    - lib/assets/images/hero_bg.jpg
+    - lib/assets/images/hero_bg.png

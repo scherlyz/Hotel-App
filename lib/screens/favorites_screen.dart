@@ -160,167 +160,289 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final double headerHeight = (screenHeight * 0.22).clamp(140.0, 220.0);
+    // Ukuran awal sheet (sisa layar setelah header foto), sheet ini bisa
+    // ditarik naik untuk melihat lebih banyak, sama seperti detail_screen.
+    final double initialSheetSize =
+        (1 - (headerHeight - 16) / screenHeight).clamp(0.72, 0.9);
+    final double safeTopGap = MediaQuery.of(context).padding.top + 76;
+    final double maxSheetSize =
+        (1 - safeTopGap / screenHeight).clamp(initialSheetSize, 0.95);
+
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // ─── Back | Search | Filter ─────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
-              child: Row(
-                children: [
-                 _circleHeaderButton(
-                  icon: Icons.arrow_back_ios_new_rounded,
-                  onTap: () {
-                    if (widget.onBackToHome != null) {
-                      widget.onBackToHome!();
-                    } else if (Navigator.canPop(context)) {
-                      Navigator.pop(context);
-                    }
-                  },
-                ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Container(
-                      height: 44,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(100),
+      body: Stack(
+        children: [
+          // ─── Header foto — fixed di belakang (tidak ikut scroll) ─────
+          SizedBox(
+            height: headerHeight,
+            width: double.infinity,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                Image.asset(
+                  'lib/assets/images/hero_bg.png',
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, error, __) => Container(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [AppColors.primary, Color(0xFF0F2E28)],
                       ),
+                    ),
+                  ),
+                ),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: .45),
+                        Colors.black.withValues(alpha: .15),
+                        Colors.black.withValues(alpha: .55),
+                      ],
+                    ),
+                  ),
+                ),
+                Positioned(
+                  left: 24,
+                  right: 24,
+                  bottom: 20,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      const SizedBox(width: 10),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // ─── Form: bisa ditarik naik, berisi search, filter & daftar favorit ──
+          DraggableScrollableSheet(
+            initialChildSize: initialSheetSize,
+            minChildSize: initialSheetSize,
+            maxChildSize: maxSheetSize,
+            builder: (context, scrollController) {
+              return Container(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                ),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 10),
+                    Center(
+                      child: Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.border,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // ─── Search | Filter ─────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
-                          const Icon(Icons.search_rounded,
-                              color: AppColors.primary, size: 20),
-                          const SizedBox(width: 8),
                           Expanded(
-                            child: TextField(
-                              controller: _searchCtrl,
-                              onChanged: (v) =>
-                                  setState(() => _searchQuery = v),
-                              textAlignVertical: TextAlignVertical.center,
-                              style: const TextStyle(
-                                  fontSize: 14, color: AppColors.textPrimary),
-                              decoration: const InputDecoration(
-                                isCollapsed: true,
-                                hintText: 'Cari favorit...',
-                                hintStyle: TextStyle(
-                                    color: AppColors.textHint, fontSize: 13),
-                                border: InputBorder.none,
+                            child: Container(
+                              height: 46,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 14),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF3F4F6),
+                                borderRadius: BorderRadius.circular(100),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.search_rounded,
+                                      color: AppColors.primary, size: 20),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchCtrl,
+                                      onChanged: (v) => setState(
+                                          () => _searchQuery = v),
+                                      textAlignVertical:
+                                          TextAlignVertical.center,
+                                      style: const TextStyle(
+                                          fontSize: 14,
+                                          color: AppColors.textPrimary),
+                                      decoration: const InputDecoration(
+                                        isCollapsed: true,
+                                        hintText: 'Cari favorit...',
+                                        hintStyle: TextStyle(
+                                            color: AppColors.textHint,
+                                            fontSize: 13),
+                                        border: InputBorder.none,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
+                          ),
+                          const SizedBox(width: 12),
+                          _circleHeaderButton(
+                            icon: Icons.tune_rounded,
+                            onTap: _showSortSheet,
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  _circleHeaderButton(
-                    icon: Icons.tune_rounded,
-                    onTap: _showSortSheet,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
+                    const SizedBox(height: 14),
 
-            // ─── Label "Favorite" ─────────────────────
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text('Favorite',
-                    style: TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.textPrimary)),
-              ),
-            ),
-            const SizedBox(height: 12),
+                    // ─── Label "Favorite" ─────────────────────
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
+                      child: Row(
+                        children: [
+                          const Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: Text('Favorite',
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.textPrimary)),
+                            ),
+                          ),
+                          if (!widget.isGuest)
+                            Text('${_favorites.length} tempat',
+                                style: const TextStyle(
+                                    fontSize: 12.5,
+                                    color: AppColors.textMuted,
+                                    fontWeight: FontWeight.w500)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
 
-            Expanded(child: _buildBody()),
-          ],
-        ),
+                    Expanded(child: _buildBody(scrollController)),
+                  ],
+                ),
+              );
+            },
+          ),
+
+          // ─── Back button — fixed di atas foto ─────────────────────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 20,
+            child: _circleHeaderButton(
+              icon: Icons.arrow_back_ios_new_rounded,
+              onTap: () {
+                if (widget.onBackToHome != null) {
+                  widget.onBackToHome!();
+                } else if (Navigator.canPop(context)) {
+                  Navigator.pop(context);
+                }
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildBody() {
+  Widget _buildBody(ScrollController controller) {
     // ─── Guest: prompt login ───────────────────────
-    if (widget.isGuest) return _buildGuestPrompt();
+    if (widget.isGuest) {
+      return ListView(
+        controller: controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [_buildGuestPrompt()],
+      );
+    }
 
     if (_isLoading) {
-      return const Center(
-          child: CircularProgressIndicator(color: AppColors.primary));
+      return ListView(
+        controller: controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.12),
+          const Center(
+              child: CircularProgressIndicator(color: AppColors.primary)),
+        ],
+      );
     }
 
     if (_error != null) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline_rounded,
-                size: 56, color: AppColors.textMuted),
-            const SizedBox(height: 16),
-            Text(_error!,
-                textAlign: TextAlign.center,
-                style: const TextStyle(color: AppColors.textMuted)),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: _loadFavorites,
-              icon: const Icon(Icons.refresh, size: 20),
-              label: const Text('Coba Lagi',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      return ListView(
+        controller: controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline_rounded,
+                  size: 56, color: AppColors.textMuted),
+              const SizedBox(height: 16),
+              Text(_error!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: AppColors.textMuted)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _loadFavorites,
+                icon: const Icon(Icons.refresh, size: 20),
+                label: const Text('Coba Lagi',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 24, vertical: 12),
+                ),
               ),
-            ),
-          ],
-        ),
+            ],
+          ),
+        ],
       );
     }
 
     if (_favorites.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: _loadFavorites,
-        color: AppColors.primary,
-        backgroundColor: Colors.white,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.of(context).size.height * 0.18),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.favorite_outline_rounded,
-                      size: 72, color: AppColors.primary.withValues(alpha: 0.4)),
-                  const SizedBox(height: 20),
-                  const Text('Belum ada favorit nih',
-                      style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Cari destinasi impianmu\ndan simpan ke sini!',
-                    textAlign: TextAlign.center,
+      return ListView(
+        controller: controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.favorite_outline_rounded,
+                    size: 72, color: AppColors.primary.withValues(alpha: 0.4)),
+                const SizedBox(height: 20),
+                const Text('Belum ada favorit nih',
                     style: TextStyle(
-                        color: AppColors.textMuted, height: 1.5, fontSize: 14),
-                  ),
-                ],
-              ),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 8),
+                const Text(
+                  'Cari destinasi impianmu\ndan simpan ke sini!',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: AppColors.textMuted, height: 1.5, fontSize: 14),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
@@ -328,101 +450,93 @@ class _FavoritesScreenState extends State<FavoritesScreen>
 
     if (displayed.isEmpty) {
       // Favorit ada, tapi pencarian tidak menemukan hasil
-      return RefreshIndicator(
-        onRefresh: _loadFavorites,
-        color: AppColors.primary,
-        backgroundColor: Colors.white,
-        child: ListView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          children: [
-            SizedBox(height: MediaQuery.of(context).size.height * 0.18),
-            const Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.search_off_rounded,
-                      size: 64, color: AppColors.textMuted),
-                  SizedBox(height: 16),
-                  Text('Tidak ditemukan',
-                      style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.textPrimary)),
-                  SizedBox(height: 6),
-                  Text('Coba kata kunci lain',
-                      style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
-                ],
-              ),
+      return ListView(
+        controller: controller,
+        physics: const AlwaysScrollableScrollPhysics(),
+        children: [
+          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
+          const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.search_off_rounded,
+                    size: 64, color: AppColors.textMuted),
+                SizedBox(height: 16),
+                Text('Tidak ditemukan',
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+                SizedBox(height: 6),
+                Text('Coba kata kunci lain',
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       );
     }
 
-    return RefreshIndicator(
-      onRefresh: _loadFavorites,
-      color: AppColors.primary,
-      backgroundColor: Colors.white,
-      child: ListView.builder(
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        itemCount: displayed.length,
-        itemBuilder: (context, index) {
-          final place = displayed[index];
-          return Dismissible(
-            key: Key(place.id.toString()),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 28),
-              margin: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
-              decoration: BoxDecoration(
-                color: AppColors.error,
-                borderRadius: BorderRadius.circular(16),
+    return ListView.builder(
+      controller: controller,
+      padding: const EdgeInsets.only(top: 4, bottom: 24),
+      itemCount: displayed.length,
+      itemBuilder: (context, index) {
+        final place = displayed[index];
+        return Dismissible(
+          key: Key(place.id.toString()),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 28),
+            margin: const EdgeInsets.only(bottom: 16, right: 16, left: 16),
+            decoration: BoxDecoration(
+              color: AppColors.error,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const Icon(Icons.delete_outline_rounded,
+                color: Colors.white, size: 32),
+          ),
+          confirmDismiss: (_) async {
+            return await showDialog<bool>(
+              context: context,
+              builder: (ctx) => AlertDialog(
+                backgroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20)),
+                title: const Text('Hapus Favorit?',
+                    style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontWeight: FontWeight.bold)),
+                content: Text(
+                    'Yakin ingin menghapus ${place.name} dari daftar favoritmu?',
+                    style: const TextStyle(color: AppColors.textSecondary)),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text('Batal',
+                        style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style:
+                        TextButton.styleFrom(foregroundColor: AppColors.error),
+                    child: const Text('Hapus',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ),
-              child: const Icon(Icons.delete_outline_rounded,
-                  color: Colors.white, size: 32),
-            ),
-            confirmDismiss: (_) async {
-              return await showDialog<bool>(
-                context: context,
-                builder: (ctx) => AlertDialog(
-                  backgroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20)),
-                  title: const Text('Hapus Favorit?',
-                      style: TextStyle(
-                          color: AppColors.textPrimary,
-                          fontWeight: FontWeight.bold)),
-                  content: Text(
-                      'Yakin ingin menghapus ${place.name} dari daftar favoritmu?',
-                      style: const TextStyle(color: AppColors.textSecondary)),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('Batal',
-                          style: TextStyle(
-                              color: AppColors.textMuted,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                    TextButton(
-                      onPressed: () => Navigator.pop(ctx, true),
-                      style: TextButton.styleFrom(
-                          foregroundColor: AppColors.error),
-                      child: const Text('Hapus',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              );
-            },
-            onDismissed: (_) => _removeFavorite(place),
-            child: Padding(
-              padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
-              child: _favoriteListItem(place),
-            ),
-          );
-        },
-      ),
+            );
+          },
+          onDismissed: (_) => _removeFavorite(place),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+            child: _favoriteListItem(place),
+          ),
+        );
+      },
     );
   }
 
