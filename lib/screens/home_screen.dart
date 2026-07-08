@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_colors.dart';
 import '../models/place.dart';
 import '../services/api_service.dart';
+import '../services/favorites_service.dart';
 import '../widgets/place_card.dart';
 import 'detail_screen.dart';
 import 'login_screen.dart';
@@ -14,6 +15,7 @@ class HomeScreen extends StatefulWidget {
   final double? userLng;
   final String locationText;
   final bool locationLoading;
+  final FavoritesService? favoritesService;
 
   const HomeScreen({
     super.key,
@@ -24,6 +26,7 @@ class HomeScreen extends StatefulWidget {
     this.userLng,
     this.locationText = 'Getting location...',
     this.locationLoading = true,
+    this.favoritesService,
   });
 
   @override
@@ -37,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   List<Place> _filteredPlaces = [];
   final List<String> _filters = ['All', 'Nearby', 'Cheapest'];
   String _selectedFilter = 'All';
-  Set<int> _favoriteIds = {};
   bool _isLoading = true;
   String? _error;
   final _searchCtrl = TextEditingController();
@@ -45,19 +47,38 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    widget.favoritesService?.addListener(_onFavoritesChanged);
     _loadData();
   }
 
   @override
   void dispose() {
+    widget.favoritesService?.removeListener(_onFavoritesChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
 
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool _isFavorite(int placeId) =>
+      !widget.isGuest &&
+      (widget.favoritesService?.isFavorite(placeId) ?? false);
+
   Future<void> _loadData() async {
     setState(() { _isLoading = true; _error = null; });
     try {
-      final placesResult = await ApiService.getAllPlaces();
+      final placesFuture = ApiService.getAllPlaces();
+      final favFuture = !widget.isGuest && widget.favoritesService != null
+          ? widget.favoritesService!.load(silent: true)
+          : null;
+
+      final placesResult = favFuture != null
+          ? (await Future.wait([placesFuture, favFuture]))[0]
+              as Map<String, dynamic>
+          : await placesFuture;
+
       if (!mounted) return;
       if (placesResult['status'] == 'ok') {
         final List data = placesResult['data'] ?? [];
@@ -67,37 +88,11 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = placesResult['message'] ?? 'Failed to load data';
       }
 
-      if (!widget.isGuest) {
-        final favResult = await ApiService.getFavorites(widget.username);
-        if (!mounted) return;
-        if (favResult['status'] == 'ok') {
-          final List favs = favResult['data'] ?? [];
-          _favoriteIds = favs
-              .map<int>((e) => int.tryParse(e['id'].toString()) ?? 0)
-              .toSet();
-        }
-      }
-
       _filterPlaces();
     } catch (e) {
       _error = 'Failed to load data: $e';
     }
     if (mounted) setState(() => _isLoading = false);
-  }
-
-  Future<void> _reloadFavorites() async {
-    if (widget.isGuest) return;
-    try {
-      final favResult = await ApiService.getFavorites(widget.username);
-      if (!mounted) return;
-      if (favResult['status'] == 'ok') {
-        final List favs = favResult['data'] ?? [];
-        setState(() {
-          _favoriteIds =
-              favs.map<int>((e) => int.tryParse(e['id'].toString()) ?? 0).toSet();
-        });
-      }
-    } catch (_) {}
   }
 
   double _distanceKm(double lat1, double lng1, double lat2, double lng2) {
@@ -141,25 +136,15 @@ class _HomeScreenState extends State<HomeScreen> {
       _showLoginPrompt();
       return;
     }
-    final result = await ApiService.toggleFavorite(place.id, widget.username);
-    debugPrint('toggleFavorite result: $result'); // sementara, buat cek respons asli backend
 
-    final bool success =
-        result['status'] == 'ok' || result.containsKey('favorited');
+    final service = widget.favoritesService;
+    if (service == null) return;
 
-    if (success) {
-      setState(() {
-        if (result['favorited'] == true) {
-          _favoriteIds.add(place.id);
-        } else {
-          _favoriteIds.remove(place.id);
-        }
-      });
-    } else if (mounted) {
+    final success = await service.toggle(place);
+    if (!success && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(result['message']?.toString() ??
-              'Gagal memperbarui favorit'),
+          content: const Text('Gagal memperbarui favorit'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -582,8 +567,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       width: 210,
                                       child: PlaceCard(
                                         place: place,
-                                        isFavorite: !widget.isGuest &&
-                                            _favoriteIds.contains(place.id),
+                                        isFavorite: _isFavorite(place.id),
                                         onFavoriteTap: () =>
                                             _toggleFavorite(place),
                                         onTap: () => Navigator.push(
@@ -593,9 +577,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                               placeId: place.id,
                                               username: widget.username,
                                               isGuest: widget.isGuest,
+                                              favoritesService:
+                                                  widget.favoritesService,
                                             ),
                                           ),
-                                        ).then((_) => _reloadFavorites()),
+                                        ),
                                       ),
                                     );
                                   },
@@ -682,9 +668,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                               bottom: 16),
                                           child: PlaceCard(
                                             place: place,
-                                            isFavorite: !widget.isGuest &&
-                                                _favoriteIds
-                                                    .contains(place.id),
+                                            isFavorite: _isFavorite(place.id),
                                             onFavoriteTap: () =>
                                                 _toggleFavorite(place),
                                             onTap: () => Navigator.push(
@@ -694,10 +678,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                                   placeId: place.id,
                                                   username: widget.username,
                                                   isGuest: widget.isGuest,
+                                                  favoritesService:
+                                                      widget.favoritesService,
                                                 ),
                                               ),
-                                            ).then(
-                                                (_) => _reloadFavorites()),
+                                            ),
                                           ),
                                         );
                                       }).toList(),
