@@ -218,10 +218,19 @@ class ApiService {
         'username': username,
       });
 
-    static Future<Map<String, dynamic>> getFavorites(String username) async {
-    print('getFavorites called with username: "$username"');
-    final result = await postRequest('get_favorites', {'username': username});
-    print('getFavorites raw result: $result');
-    return result;
-  }
+static Future<Map<String, dynamic>> getFavorites(
+    String username) async {
+
+  return postRequest(
+    'get_favorites',
+    {
+      'username': username,
+
+      /// cache buster
+      '_t': DateTime.now().millisecondsSinceEpoch,
+    },
+  );
+}
+
+  
 }

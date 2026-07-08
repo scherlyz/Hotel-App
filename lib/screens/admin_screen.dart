@@ -110,12 +110,66 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
-  void _showFormDialog({Place? place}) {
-    showDialog(
-      context: context,
-      builder: (_) => _PlaceFormDialog(place: place, onSaved: _loadPlaces),
-    );
+Future<void> _showFormDialog({Place? place}) async {
+
+  final result =
+      await showDialog<Map<String, dynamic>>(
+    context: context,
+    builder: (_) => _PlaceFormDialog(
+      place: place,
+      onSaved: () {},
+    ),
+  );
+
+  if (result == null) return;
+
+  if (place == null) {
+
+    await _loadPlaces();
+
+    return;
   }
+
+  setState(() {
+
+    final index =
+        _places.indexWhere(
+      (e) => e.id == place.id,
+    );
+
+    if (index == -1) return;
+
+    _places[index] = Place(
+      id: place.id,
+      name: result['name'],
+      category: result['category'],
+      address: result['address'],
+      lat: double.tryParse(result['lat']) ?? 0,
+      lng: double.tryParse(result['lng']) ?? 0,
+      description: result['description'],
+      photoUrl: result['photo_url'],
+      phone: result['phone'],
+      website: result['website'],
+      workingHours: result['working_hours'],
+      priceMin:
+          int.tryParse(result['price_min']) ?? 0,
+      priceMax:
+          int.tryParse(result['price_max']) ?? 0,
+      stars:
+          int.tryParse(result['stars']) ?? 0,
+      rating:
+          double.tryParse(result['rating']) ?? 0,
+    );
+
+  });
+
+
+  // sinkronisasi di belakang layar
+  Future.delayed(
+    const Duration(seconds: 1),
+    _loadPlaces,
+  );
+}
 
   // ─── Tombol bulat untuk back ──────────────────────────────────────────
   Widget _circleHeaderButton({
@@ -695,17 +749,21 @@ class _PlaceFormDialogState extends State<_PlaceFormDialog> {
       }
       if (!mounted) return;
       
-      if (result['status'] == 'ok') {
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_isEdit ? 'Tempat berhasil diupdate!' : 'Tempat berhasil ditambahkan!'),
-            backgroundColor: const Color(0xFF2D8B6F),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-        widget.onSaved();
+if (result['status'] == 'ok') {
+  Navigator.pop(context, body);
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(
+        _isEdit
+            ? 'Tempat berhasil diupdate!'
+            : 'Tempat berhasil ditambahkan!',
+      ),
+      backgroundColor: const Color(0xFF2D8B6F),
+      behavior: SnackBarBehavior.floating,
+    ),
+  );
+
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message'] ?? 'Gagal menyimpan'), backgroundColor: const Color(0xFFDC2626)),

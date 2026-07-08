@@ -77,68 +77,33 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (mounted) setState(() {});
   }
 
-        Future<void> _removeFavorite(Place place) async {
+  Future<void> _removeFavorite(Place place) async {
+    final service = widget.favoritesService;
+    if (service == null) return;
 
-        final service = widget.favoritesService;
+    final success = await service.toggle(place);
+    if (!mounted) return;
 
-        if(service==null) return;
-
-        final success =
-            await service.toggle(place);
-
-        if(!mounted) return;
-
-        if(!success){
-
-          ScaffoldMessenger.of(context)
-              .showSnackBar(
-            SnackBar(
-              content: const Text(
-                "Gagal menghapus favorit",
-              ),
-              backgroundColor: AppColors.error,
-            ),
-          );
-
-          return;
-
-        }
-
-        final messenger =
-            ScaffoldMessenger.of(context);
-
-        messenger.hideCurrentSnackBar();
-
-        messenger.showSnackBar(
-
-          SnackBar(
-
-            duration:
-                const Duration(seconds:3),
-
-            content: Text(
-              "${place.name} dihapus dari favorit",
-            ),
-
-            action: SnackBarAction(
-
-              label: "Batalkan",
-
-              textColor: Colors.white,
-
-              onPressed: () async {
-
-                await service.toggle(place);
-
-              },
-
-            ),
-
-          ),
-
-        );
-
-      }
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('${place.name} dihapus dari favorit'),
+          backgroundColor: AppColors.textPrimary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gagal menghapus favorit'),
+          backgroundColor: AppColors.error,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -461,56 +426,56 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             child: const Icon(Icons.delete_outline_rounded,
                 color: Colors.white, size: 32),
           ),
-      confirmDismiss: (_) async {
+    confirmDismiss: (_) async {
 
-        final confirm = await showDialog<bool>(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(20),
-            ),
-            title: const Text("Hapus Favorit?"),
-            content: Text(
-              "Yakin ingin menghapus ${place.name} dari favorit?",
-            ),
-            actions: [
-
-              TextButton(
-                onPressed: (){
-                  Navigator.pop(ctx,false);
-                },
-                child: const Text("Batal"),
-              ),
-
-              TextButton(
-                onPressed: (){
-                  Navigator.pop(ctx,true);
-                },
-                child: const Text("Hapus"),
-              ),
-
-            ],
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
+          title: const Text("Hapus Favorit?"),
+          content: Text(
+            "Yakin ingin menghapus ${place.name} dari favorit?",
+          ),
+          actions: [
+
+            TextButton(
+              onPressed: (){
+                Navigator.pop(ctx,false);
+              },
+              child: const Text("Batal"),
+            ),
+
+            TextButton(
+              onPressed: (){
+                Navigator.pop(ctx,true);
+              },
+              child: const Text("Hapus"),
+            ),
+
+          ],
+        ),
+      );
+
+      if(confirm==true){
+
+          await _removeFavorite(place);
+
+      }
+
+      // Dismissible jangan menghapus widget sendiri
+      return false;
+    },
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
+                child: _favoriteListItem(place),
+              ),
+            );
+          },
         );
-
-        if(confirm==true){
-
-            await _removeFavorite(place);
-
-        }
-
-        // Dismissible jangan menghapus widget sendiri
-        return false;
-      },
-                child: Padding(
-                  padding: const EdgeInsets.only(bottom: 16, left: 16, right: 16),
-                  child: _favoriteListItem(place),
-                ),
-              );
-            },
-          );
-        }
+      }
 
   // ─── Kartu favorit horizontal, layout sesuai referensi ─────────────────
   Widget _favoriteListItem(Place place) {
