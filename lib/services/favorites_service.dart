@@ -65,57 +65,42 @@ class FavoritesService extends ChangeNotifier {
   }
 
   Future<bool> toggle(Place place) async {
-    final placeId = place.id;
-    if (_pendingToggles.contains(placeId)) return true;
+  final placeId = place.id;
 
-    _pendingToggles.add(placeId);
-    final wasFavorite = _favoriteIds.contains(placeId);
+  if (_pendingToggles.contains(placeId)) {
+    return false;
+  }
 
-    if (wasFavorite) {
-      _favoriteIds.remove(placeId);
-      _favoritePlaces.remove(placeId);
-    } else {
+  _pendingToggles.add(placeId);
+
+  try {
+    final result =
+        await ApiService.toggleFavorite(placeId, username);
+
+    print("TOGGLE RESULT = $result");
+
+    if (result['status'] != 'ok') {
+      return false;
+    }
+
+    final favorited = result['favorited'] == true;
+
+    if (favorited) {
       _favoriteIds.add(placeId);
       _favoritePlaces[placeId] = place;
+    } else {
+      _favoriteIds.remove(placeId);
+      _favoritePlaces.remove(placeId);
     }
+
     notifyListeners();
 
-    try {
-      final result = await ApiService.toggleFavorite(placeId, username);
-      final success = result['status'] == 'ok';
-
-      if (success && result.containsKey('favorited')) {
-        final favorited = result['favorited'] == true;
-        if (favorited) {
-          _favoriteIds.add(placeId);
-          _favoritePlaces[placeId] = place;
-        } else {
-          _favoriteIds.remove(placeId);
-          _favoritePlaces.remove(placeId);
-        }
-      } else if (!success) {
-        _revertToggle(wasFavorite, place);
-      }
-
-      notifyListeners();
-      return success;
-    } catch (_) {
-      _revertToggle(wasFavorite, place);
-      notifyListeners();
-      return false;
-    } finally {
-      _pendingToggles.remove(placeId);
-      notifyListeners();
-    }
+    return true;
+  } catch (e) {
+    print(e);
+    return false;
+  } finally {
+    _pendingToggles.remove(placeId);
   }
-
-  void _revertToggle(bool wasFavorite, Place place) {
-    if (wasFavorite) {
-      _favoriteIds.add(place.id);
-      _favoritePlaces[place.id] = place;
-    } else {
-      _favoriteIds.remove(place.id);
-      _favoritePlaces.remove(place.id);
-    }
-  }
+}
 }
