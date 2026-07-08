@@ -321,25 +321,22 @@ class _DetailScreenState extends State<DetailScreen> {
     }
 
     final place = _place!;
+       final bottomSafe = MediaQuery.of(context).padding.bottom;
+    const navBarClearance = 70.0;
+
     final screenHeight = MediaQuery.of(context).size.height;
-    final double headerHeight = (screenHeight * 0.30).clamp(140.0, 300.0);
-    // Ukuran awal sheet (sisa layar setelah header foto), dibatasi supaya
-    // wajar di layar kecil maupun besar. Sheet ini bisa ditarik naik sampai
-    // hampir menutup satu layar penuh.
+    final double headerHeight = (screenHeight * 0.28).clamp(180.0, 270.0);
     final double initialSheetSize =
-        (1 - (headerHeight - 16) / screenHeight).clamp(0.55, 0.8);
-    // Batas atas sheet: sisakan ruang di bawah tombol back/favorite (tinggi
-    // status bar + ukuran tombol + jarak aman) supaya sheet tidak pernah
-    // menabrak/menutupi tombol-tombol itu saat ditarik penuh ke atas.
+        (1 - (headerHeight - 28) / screenHeight).clamp(0.72, 0.9);
     final double safeTopGap = MediaQuery.of(context).padding.top + 76;
     final double maxSheetSize =
-        (1 - safeTopGap / screenHeight).clamp(initialSheetSize, 0.92);
+        (1 - safeTopGap / screenHeight).clamp(initialSheetSize, 0.95);
+
 
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // ─── Foto hero, fixed di belakang (tidak ikut scroll) ───────────────
           SizedBox(
             height: headerHeight,
             width: double.infinity,

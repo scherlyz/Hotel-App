@@ -346,17 +346,14 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Beri jarak ekstra di bawah supaya card terakhir
-    // tidak ketutup bottom navigation bar aplikasi.
+  
     final bottomSafe = MediaQuery.of(context).padding.bottom;
     const navBarClearance = 70.0;
 
     final screenHeight = MediaQuery.of(context).size.height;
-    final double headerHeight = (screenHeight * 0.22).clamp(140.0, 220.0);
-    // Ukuran awal sheet (sisa layar setelah header foto), sheet ini bisa
-    // ditarik naik untuk melihat lebih banyak, sama seperti detail_screen.
+    final double headerHeight = (screenHeight * 0.28).clamp(180.0, 270.0);
     final double initialSheetSize =
-        (1 - (headerHeight - 16) / screenHeight).clamp(0.72, 0.9);
+        (1 - (headerHeight - 28) / screenHeight).clamp(0.72, 0.9);
     final double safeTopGap = MediaQuery.of(context).padding.top + 76;
     final double maxSheetSize =
         (1 - safeTopGap / screenHeight).clamp(initialSheetSize, 0.95);
@@ -365,7 +362,6 @@ class _AdminScreenState extends State<AdminScreen> {
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // ─── Header foto — fixed di belakang (tidak ikut scroll) ─────
           SizedBox(
             height: headerHeight,
             width: double.infinity,

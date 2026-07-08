@@ -151,9 +151,9 @@ class _MainScreenState extends State<MainScreen> {
       body: Stack(
         children: [
           Positioned.fill(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 250),
-            child: _screens[_currentIndex],
+          child: IndexedStack(
+            index: _currentIndex,
+            children: _screens,
           ),
         ),
 

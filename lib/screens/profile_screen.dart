@@ -515,13 +515,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+        final bottomSafe = MediaQuery.of(context).padding.bottom;
+    const navBarClearance = 70.0;
+
     final screenHeight = MediaQuery.of(context).size.height;
-    final double headerHeight = (screenHeight * 0.30).clamp(140.0, 300.0);
+    final double headerHeight = (screenHeight * 0.28).clamp(180.0, 270.0);
     final double initialSheetSize =
-        (1 - (headerHeight - 16) / screenHeight).clamp(0.55, 0.85);
-    final double safeTopGap = MediaQuery.of(context).padding.top + 20;
+        (1 - (headerHeight - 28) / screenHeight).clamp(0.72, 0.9);
+    final double safeTopGap = MediaQuery.of(context).padding.top + 76;
     final double maxSheetSize =
         (1 - safeTopGap / screenHeight).clamp(initialSheetSize, 0.95);
+
 
     return Scaffold(
       backgroundColor: Colors.white,

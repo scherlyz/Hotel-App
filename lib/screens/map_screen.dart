@@ -6,6 +6,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:http/http.dart' as http;
 import '../models/place.dart';
 import '../services/location_service.dart';
+import '../core/constants/app_colors.dart';
 
 class MapScreen extends StatefulWidget {
   final Place place;
@@ -177,33 +178,8 @@ class _MapScreenState extends State<MapScreen> {
     final placeLatLng = LatLng(widget.place.lat, widget.place.lng);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5DC),
-      appBar: AppBar(
-        title: Text(widget.place.name,
-            style: const TextStyle(
-                fontWeight: FontWeight.w700, fontSize: 18)),
-        backgroundColor: const Color(0xFFF5F5DC),
-        foregroundColor: const Color(0xFF1A1A1A),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.my_location_rounded,
-                color: Color(0xFF2D8B6F)),
-            onPressed: _loadingLocation ? null : _centerToUser,
-          ),
-          IconButton(
-            icon: const Icon(Icons.place_rounded, color: Color(0xFFDC2626)),
-            onPressed: _centerToPlace,
-          ),
-          if (_userLat != null)
-            IconButton(
-              icon: const Icon(Icons.route_rounded,
-                  color: Color(0xFF1565C0)),
-              onPressed: _loadingRoute ? null : _fetchRoute,
-            ),
-          const SizedBox(width: 4),
-        ],
-      ),
+      backgroundColor: Colors.white,
+      extendBodyBehindAppBar: true,
       body: Stack(
         children: [
           FlutterMap(
@@ -268,17 +244,89 @@ class _MapScreenState extends State<MapScreen> {
             ],
           ),
 
+          // ─── Header mengambang: back + judul + aksi (gaya konsisten
+          // dengan layar lain — tombol bulat putih di atas konten) ────
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 12,
+            left: 20,
+            right: 20,
+            child: Row(
+              children: [
+                _circleMapButton(
+                  icon: Icons.arrow_back_ios_new_rounded,
+                  iconColor: AppColors.textPrimary,
+                  onTap: () => Navigator.pop(context),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Container(
+                    height: 44,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    alignment: Alignment.centerLeft,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(100),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: .08),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
+                        ),
+                      ],
+                    ),
+                    child: Text(
+                      widget.place.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          color: AppColors.textPrimary),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _circleMapButton(
+                  icon: Icons.my_location_rounded,
+                  iconColor: AppColors.primary,
+                  onTap: _loadingLocation ? null : _centerToUser,
+                ),
+                const SizedBox(width: 10),
+                _circleMapButton(
+                  icon: Icons.place_rounded,
+                  iconColor: AppColors.error,
+                  onTap: _centerToPlace,
+                ),
+                if (_userLat != null) ...[
+                  const SizedBox(width: 10),
+                  _circleMapButton(
+                    icon: Icons.route_rounded,
+                    iconColor: const Color(0xFF1565C0),
+                    onTap: _loadingRoute ? null : _fetchRoute,
+                  ),
+                ],
+              ],
+            ),
+          ),
+
           
           if (_steps.isNotEmpty)
             Positioned(
-              top: 20,
+              top: MediaQuery.of(context).padding.top + 68,
               left: 20,
               right: 20,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
@@ -290,6 +338,7 @@ class _MapScreenState extends State<MapScreen> {
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 15,
+                          color: AppColors.textPrimary,
                         ),
                       ),
                     ),
@@ -307,8 +356,8 @@ class _MapScreenState extends State<MapScreen> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFFE8E8E8)),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: AppColors.border),
                 boxShadow: [
                   BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),
@@ -324,12 +373,11 @@ class _MapScreenState extends State<MapScreen> {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2D8B6F)
-                              .withValues(alpha: 0.1),
+                          color: AppColors.primaryLight,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Icon(Icons.location_city_rounded,
-                            color: Color(0xFF2D8B6F), size: 24),
+                            color: AppColors.primary, size: 24),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -340,13 +388,13 @@ class _MapScreenState extends State<MapScreen> {
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 15,
-                                    color: Color(0xFF1A1A1A)),
+                                    color: AppColors.textPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
                             const SizedBox(height: 3),
                             Text(widget.place.address,
                                 style: const TextStyle(
-                                    color: Color(0xFF8899A6),
+                                    color: AppColors.textMuted,
                                     fontSize: 13),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis),
@@ -357,7 +405,7 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                   if (_distanceKm != null && _durationMin != null) ...[
                     const SizedBox(height: 12),
-                    const Divider(height: 1),
+                    const Divider(height: 1, color: AppColors.border),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -368,10 +416,10 @@ class _MapScreenState extends State<MapScreen> {
                         Container(
                             width: 1,
                             height: 36,
-                            color: const Color(0xFFE8E8E8)),
+                            color: AppColors.border),
                         _infoChip(Icons.access_time_rounded,
                             '$_durationMin menit',
-                            'Estimasi', const Color(0xFF2D8B6F)),
+                            'Estimasi', AppColors.primary),
                       ],
                     ),
                   ],
@@ -388,7 +436,7 @@ class _MapScreenState extends State<MapScreen> {
                         SizedBox(width: 10),
                         Text('Menghitung rute...',
                             style: TextStyle(
-                                fontSize: 13, color: Colors.grey)),
+                                fontSize: 13, color: AppColors.textMuted)),
                       ],
                     ),
                   ],
@@ -397,13 +445,13 @@ class _MapScreenState extends State<MapScreen> {
                     Row(
                       children: [
                         const Icon(Icons.warning_amber_rounded,
-                            color: Color(0xFFDC2626), size: 16),
+                            color: AppColors.error, size: 16),
                         const SizedBox(width: 6),
                         Expanded(
                             child: Text(_routeError!,
                                 style: const TextStyle(
                                     fontSize: 12,
-                                    color: Color(0xFFDC2626)))),
+                                    color: AppColors.error))),
                         TextButton(
                             onPressed: _fetchRoute,
                             child: const Text('Coba lagi',
@@ -426,25 +474,47 @@ class _MapScreenState extends State<MapScreen> {
                 height: 180,
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .08),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
+                  ],
                 ),
-                child: ListView.builder(
-                  itemCount: _steps.length,
-                  itemBuilder: (context, index) {
-                    return ListTile(
-                      leading: Icon(
-                        index == _currentStepIndex
-                            ? Icons.navigation
-                            : Icons.turn_right,
-                      ),
-                      title: Text(
-                        _steps[index]['instruction'].toString(),
-                      ),
-                      subtitle: Text(
-                        '${((_steps[index]["distance"] as num).toDouble() / 1000).toStringAsFixed(2)} km',
-                      ),
-                    );
-                  },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    itemCount: _steps.length,
+                    separatorBuilder: (_, __) =>
+                        const Divider(height: 1, color: AppColors.border),
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        leading: Icon(
+                          index == _currentStepIndex
+                              ? Icons.navigation
+                              : Icons.turn_right,
+                          color: index == _currentStepIndex
+                              ? AppColors.primary
+                              : AppColors.textMuted,
+                        ),
+                        title: Text(
+                          _steps[index]['instruction'].toString(),
+                          style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary),
+                        ),
+                        subtitle: Text(
+                          '${((_steps[index]["distance"] as num).toDouble() / 1000).toStringAsFixed(2)} km',
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.textMuted),
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
@@ -453,7 +523,7 @@ class _MapScreenState extends State<MapScreen> {
           // Error GPS
           if (_locationError != null)
             Positioned(
-              top: 16,
+              top: MediaQuery.of(context).padding.top + 68,
               left: 20,
               right: 20,
               child: Container(
@@ -461,19 +531,26 @@ class _MapScreenState extends State<MapScreen> {
                     horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFEF2F2),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFFECACA)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
                     const Icon(Icons.warning_amber_rounded,
-                        color: Color(0xFFDC2626), size: 20),
+                        color: AppColors.error, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                         child: Text(_locationError!,
                             style: const TextStyle(
                                 fontSize: 13,
-                                color: Color(0xFFDC2626),
+                                color: AppColors.error,
                                 fontWeight: FontWeight.w500))),
                   ],
                 ),
@@ -483,7 +560,7 @@ class _MapScreenState extends State<MapScreen> {
           // Loading GPS
           if (_loadingLocation)
             Positioned(
-              top: 16,
+              top: MediaQuery.of(context).padding.top + 68,
               left: 20,
               right: 20,
               child: Container(
@@ -491,8 +568,15 @@ class _MapScreenState extends State<MapScreen> {
                     horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE8E8E8)),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: .06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: const Row(
                   children: [
@@ -500,12 +584,12 @@ class _MapScreenState extends State<MapScreen> {
                         width: 18,
                         height: 18,
                         child: CircularProgressIndicator(
-                            color: Color(0xFF2D8B6F), strokeWidth: 2.5)),
+                            color: AppColors.primary, strokeWidth: 2.5)),
                     SizedBox(width: 12),
                     Text('Mendapatkan lokasi kamu...',
                         style: TextStyle(
                             fontSize: 13,
-                            color: Color(0xFF555555),
+                            color: AppColors.textSecondary,
                             fontWeight: FontWeight.w500)),
                   ],
                 ),
@@ -515,7 +599,7 @@ class _MapScreenState extends State<MapScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _openGoogleMapsRoute,
-        backgroundColor: const Color(0xFF2D8B6F),
+        backgroundColor: AppColors.primary,
         elevation: 0,
         icon: const Icon(Icons.directions_rounded,
             color: Colors.white, size: 22),
@@ -547,8 +631,37 @@ class _MapScreenState extends State<MapScreen> {
         ),
         const SizedBox(height: 2),
         Text(label,
-            style: const TextStyle(fontSize: 11, color: Colors.grey)),
+            style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
       ],
+    );
+  }
+
+  // ─── Tombol bulat putih untuk header mengambang di atas peta ──────────
+  Widget _circleMapButton({
+    required IconData icon,
+    required Color iconColor,
+    required VoidCallback? onTap,
+  }) {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: .08),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        onPressed: onTap,
+        icon: Icon(icon,
+            color: onTap == null ? AppColors.textMuted : iconColor, size: 18),
+      ),
     );
   }
 }
