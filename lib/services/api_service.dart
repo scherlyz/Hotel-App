@@ -5,8 +5,7 @@ import 'package:http/http.dart' as http;
 
 class ApiService {
   static const String _gasUrl =
-      'https://script.google.com/macros/s/'
-      'AKfycbw53aOLJOxS59zlITZMofbEJiUpuc29cFK4at34Kpt5vtNDHnzkDNvnQrCWfZ8kzTba_A/exec';
+      'https://script.google.com/macros/s/AKfycbw53aOLJOxS59zlITZMofbEJiUpuc29cFK4at34Kpt5vtNDHnzkDNvnQrCWfZ8kzTba_A/exec';
 
   static const String _proxyUrl = 'https://corsproxy.io/?url=';
 

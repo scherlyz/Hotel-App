@@ -3,7 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'map_screen.dart';
-import '../widgets/place_card.dart'; // sesuaikan path kalau lokasi filenya beda
+import '../widgets/place_card.dart'; 
 import 'login_screen.dart';
 import '../models/place.dart';
 import '../models/review.dart';
@@ -58,7 +58,6 @@ class _DetailScreenState extends State<DetailScreen> {
     final futures = <Future>[
       ApiService.getPlaceById(widget.placeId),
       ApiService.getReviews(widget.placeId),
-      // Hanya fetch favorites kalau bukan guest
       if (!widget.isGuest) ApiService.getFavorites(widget.username),
     ];
 
