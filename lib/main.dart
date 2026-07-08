@@ -7,6 +7,7 @@ import 'screens/profile_screen.dart';
 import 'screens/admin_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/login_screen.dart';
+import 'services/favorites_service.dart';
 import 'services/location_service.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_colors.dart';
@@ -23,7 +24,6 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Travel & Hotel App',
       debugShowCheckedModeBanner: false,
-      navigatorObservers: [FavoritesScreen.routeObserver],
       theme: AppTheme.theme,
       home: const SplashScreen(),
     );
@@ -53,13 +53,23 @@ class _MainScreenState extends State<MainScreen> {
   bool _locationLoading = true;
   double? _userLat;
   double? _userLng;
+  FavoritesService? _favoritesService;
 
   bool get _isGuest => widget.isGuest;
 
   @override
   void initState() {
     super.initState();
+    if (!_isGuest) {
+      _favoritesService = FavoritesService(username: widget.username);
+    }
     _initLocation();
+  }
+
+  @override
+  void dispose() {
+    _favoritesService?.dispose();
+    super.dispose();
   }
 
   Future<void> _initLocation() async {
@@ -113,6 +123,7 @@ class _MainScreenState extends State<MainScreen> {
       userLng: _userLng,
       locationText: _locationText,
       locationLoading: _locationLoading,
+      favoritesService: _favoritesService,
     );
 
     if (widget.isAdmin) {
@@ -121,6 +132,7 @@ class _MainScreenState extends State<MainScreen> {
         FavoritesScreen(
           username: widget.username,
           isGuest: false,
+          favoritesService: _favoritesService,
           onBackToHome: () => setState(() => _currentIndex = 0),
         ),
         const AdminScreen(),
@@ -133,6 +145,7 @@ class _MainScreenState extends State<MainScreen> {
       FavoritesScreen(
         username: widget.username,
         isGuest: _isGuest,
+        favoritesService: _favoritesService,
         onBackToHome: () => setState(() => _currentIndex = 0),
       ),
       _isGuest

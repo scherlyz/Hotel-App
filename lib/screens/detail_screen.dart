@@ -8,18 +8,21 @@ import 'login_screen.dart';
 import '../models/place.dart';
 import '../models/review.dart';
 import '../services/api_service.dart';
+import '../services/favorites_service.dart';
 import '../core/constants/app_colors.dart';
 
 class DetailScreen extends StatefulWidget {
   final int placeId;
   final String username;
   final bool isGuest;
+  final FavoritesService? favoritesService;
 
   const DetailScreen({
     super.key,
     required this.placeId,
     required this.username,
     this.isGuest = false,
+    this.favoritesService,
   });
 
   @override
@@ -31,7 +34,6 @@ class _DetailScreenState extends State<DetailScreen> {
   Place? _place;
   List<Review> _reviews = [];
   bool _isLoading = true;
-  bool _isFavorite = false;
   bool _isSubmittingReview = false;
   String? _error;
 
@@ -43,14 +45,24 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   void initState() {
     super.initState();
+    widget.favoritesService?.addListener(_onFavoritesChanged);
     _loadDetail();
   }
 
   @override
   void dispose() {
+    widget.favoritesService?.removeListener(_onFavoritesChanged);
     _commentCtrl.dispose();
     super.dispose();
   }
+
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _isFavorite =>
+      !widget.isGuest &&
+      (widget.favoritesService?.isFavorite(widget.placeId) ?? false);
 
   Future<void> _loadDetail() async {
     setState(() { _isLoading = true; _error = null; });
@@ -58,6 +70,7 @@ class _DetailScreenState extends State<DetailScreen> {
     final futures = <Future>[
       ApiService.getPlaceById(widget.placeId),
       ApiService.getReviews(widget.placeId),
+      // Hanya fetch favorites kalau bukan guest
       if (!widget.isGuest) ApiService.getFavorites(widget.username),
     ];
 
@@ -73,11 +86,6 @@ class _DetailScreenState extends State<DetailScreen> {
     if (results[1]['status'] == 'ok') {
       final List data = results[1]['data'] ?? [];
       _reviews = data.map((e) => Review.fromJson(e)).toList();
-    }
-
-    if (!widget.isGuest && results.length > 2 && results[2]['status'] == 'ok') {
-      final List favs = results[2]['data'] ?? [];
-      _isFavorite = favs.any((e) => e['id'].toString() == widget.placeId.toString());
     }
 
     setState(() => _isLoading = false);
@@ -152,17 +160,35 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _toggleFavorite() async {
-    final result = await ApiService.toggleFavorite(widget.placeId, widget.username);
+    if (_place == null) return;
+    final service = widget.favoritesService;
+    if (service == null) return;
+
+    final wasFavorite = _isFavorite;
+    final success = await service.toggle(_place!);
     if (!mounted) return;
-    if (result['status'] == 'ok') {
-      setState(() => _isFavorite = result['favorited'] == true);
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(_isFavorite ? 'Ditambahkan ke favorit' : 'Dihapus dari favorit'),
+          content: Text(_isFavorite
+              ? 'Ditambahkan ke favorit'
+              : 'Dihapus dari favorit'),
           backgroundColor: AppColors.textPrimary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           duration: const Duration(seconds: 2),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(wasFavorite
+              ? 'Gagal menghapus dari favorit'
+              : 'Gagal menambahkan ke favorit'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
     }
@@ -609,6 +635,7 @@ class _DetailScreenState extends State<DetailScreen> {
                             placeId: rec.id,
                             username: widget.username,
                             isGuest: widget.isGuest,
+                            favoritesService: widget.favoritesService,
                           ),
                         ),
                       );

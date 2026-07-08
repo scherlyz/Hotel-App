@@ -3,22 +3,21 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../core/constants/app_colors.dart';
 import '../models/place.dart';
 import '../services/api_service.dart';
+import '../services/favorites_service.dart';
 import 'detail_screen.dart';
 import 'login_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
   final String username;
   final bool isGuest;
-  final VoidCallback? onBackToHome; // baru
-
-
-  static final RouteObserver<ModalRoute<void>> routeObserver =
-      RouteObserver<ModalRoute<void>>();
+  final FavoritesService? favoritesService;
+  final VoidCallback? onBackToHome;
 
   const FavoritesScreen({
     super.key,
     required this.username,
     this.isGuest = false,
+    this.favoritesService,
     this.onBackToHome,
   });
 
@@ -26,16 +25,19 @@ class FavoritesScreen extends StatefulWidget {
   State<FavoritesScreen> createState() => _FavoritesScreenState();
 }
 
-class _FavoritesScreenState extends State<FavoritesScreen>
-    with RouteAware, WidgetsBindingObserver {
-  List<Place> _favorites = [];
-  bool _isLoading = true;
-  String? _error;
-
+class _FavoritesScreenState extends State<FavoritesScreen> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
   // 0 = default, 1 = rating tertinggi, 2 = nama A-Z
   int _sortMode = 0;
+
+  List<Place> get _favorites => widget.favoritesService?.favorites ?? [];
+
+  bool get _showInitialLoading =>
+      !widget.isGuest &&
+      widget.favoritesService != null &&
+      !widget.favoritesService!.isLoaded &&
+      widget.favoritesService!.isFetching;
 
   List<Place> get _displayedFavorites {
     var list = _favorites.where((p) {
@@ -56,100 +58,50 @@ class _FavoritesScreenState extends State<FavoritesScreen>
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
-    if (!widget.isGuest) _loadFavorites();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final route = ModalRoute.of(context);
-    if (route != null) {
-      FavoritesScreen.routeObserver.subscribe(this, route);
+    widget.favoritesService?.addListener(_onFavoritesChanged);
+    if (!widget.isGuest && widget.favoritesService != null) {
+      if (!widget.favoritesService!.isLoaded) {
+        widget.favoritesService!.load();
+      }
     }
   }
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    FavoritesScreen.routeObserver.unsubscribe(this);
+    widget.favoritesService?.removeListener(_onFavoritesChanged);
     _searchCtrl.dispose();
     super.dispose();
   }
 
-  @override
-  void didPopNext() {
-    if (!widget.isGuest) _loadFavorites();
-  }
-
-  @override
-  void didPush() {
-    if (!widget.isGuest) _loadFavorites();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && !widget.isGuest) {
-      _loadFavorites();
-    }
-  }
-
-  Future<void> _loadFavorites() async {
-    if (!mounted) return;
-    setState(() { _isLoading = true; _error = null; });
-
-    try {
-      final result = await ApiService.getFavorites(widget.username);
-      if (!mounted) return;
-      if (result['status'] == 'ok') {
-        final List data = result['data'] ?? [];
-        setState(() {
-          _favorites = data.map((e) => Place.fromJson(e)).toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() {
-          _error = result['message'] ?? 'Gagal memuat favorit';
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _error = 'Terjadi kesalahan: $e';
-        _isLoading = false;
-      });
-    }
+  void _onFavoritesChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _removeFavorite(Place place) async {
-    try {
-      final result = await ApiService.postRequest('toggle_favorite', {
-        'place_id': place.id,
-        'username': widget.username,
-      });
-      if (!mounted) return;
-      if (result['favorited'] == false || result['status'] == 'ok') {
-        setState(() => _favorites.removeWhere((p) => p.id == place.id));
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${place.name} dihapus dari favorit'),
-            backgroundColor: AppColors.textPrimary,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            behavior: SnackBarBehavior.floating,
-            action: SnackBarAction(
-              label: 'Batalkan',
-              textColor: AppColors.background,
-              onPressed: _loadFavorites,
-            ),
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
+    final service = widget.favoritesService;
+    if (service == null) return;
+
+    final success = await service.toggle(place);
+    if (!mounted) return;
+
+    if (success) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Gagal menghapus favorit: $e'),
+          content: Text('${place.name} dihapus dari favorit'),
+          backgroundColor: AppColors.textPrimary,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          behavior: SnackBarBehavior.floating,
+          action: SnackBarAction(
+            label: 'Batalkan',
+            textColor: AppColors.background,
+            onPressed: () => service.toggle(place),
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gagal menghapus favorit'),
           backgroundColor: AppColors.error,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           behavior: SnackBarBehavior.floating,
@@ -366,7 +318,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       );
     }
 
-    if (_isLoading) {
+    if (_showInitialLoading) {
       return ListView(
         controller: controller,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -378,44 +330,7 @@ class _FavoritesScreenState extends State<FavoritesScreen>
       );
     }
 
-    if (_error != null) {
-      return ListView(
-        controller: controller,
-        physics: const AlwaysScrollableScrollPhysics(),
-        children: [
-          SizedBox(height: MediaQuery.of(context).size.height * 0.1),
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline_rounded,
-                  size: 56, color: AppColors.textMuted),
-              const SizedBox(height: 16),
-              Text(_error!,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: AppColors.textMuted)),
-              const SizedBox(height: 24),
-              ElevatedButton.icon(
-                onPressed: _loadFavorites,
-                icon: const Icon(Icons.refresh, size: 20),
-                label: const Text('Coba Lagi',
-                    style: TextStyle(fontWeight: FontWeight.w600)),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 24, vertical: 12),
-                ),
-              ),
-            ],
-          ),
-        ],
-      );
-    }
-
-    if (_favorites.isEmpty) {
+    if (_favorites.isEmpty && widget.favoritesService?.isLoaded == true) {
       return ListView(
         controller: controller,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -552,9 +467,10 @@ class _FavoritesScreenState extends State<FavoritesScreen>
               placeId: place.id,
               username: widget.username,
               isGuest: false,
+              favoritesService: widget.favoritesService,
             ),
           ),
-        ).then((_) => _loadFavorites());
+        );
       },
       child: Container(
         padding: const EdgeInsets.all(12),
