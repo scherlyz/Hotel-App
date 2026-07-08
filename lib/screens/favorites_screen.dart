@@ -221,26 +221,44 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                                   const Icon(Icons.search_rounded,
                                       color: AppColors.primary, size: 20),
                                   const SizedBox(width: 8),
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _searchCtrl,
-                                      onChanged: (v) => setState(
-                                          () => _searchQuery = v),
-                                      textAlignVertical:
-                                          TextAlignVertical.center,
-                                      style: const TextStyle(
-                                          fontSize: 14,
-                                          color: AppColors.textPrimary),
-                                      decoration: const InputDecoration(
-                                        isCollapsed: true,
-                                        hintText: 'Cari favorit...',
-                                        hintStyle: TextStyle(
-                                            color: AppColors.textHint,
-                                            fontSize: 13),
-                                        border: InputBorder.none,
-                                      ),
-                                    ),
-                                  ),
+                                    Expanded(
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            inputDecorationTheme: const InputDecorationTheme(
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _searchCtrl,
+                            onChanged: (value) {
+                              setState(() => _searchQuery = value);
+                            },
+                            cursorColor: AppColors.primary,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              color: AppColors.textPrimary,
+                            ),
+                            decoration: const InputDecoration(
+                              hintText: 'Search places or hotels...',
+                              hintStyle: TextStyle(
+                                color: AppColors.textHint,
+                                fontSize: 14,
+                              ),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(vertical: 14),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                            ),
+                          ),
+                        ),
+                      ),
                                 ],
                               ),
                             ),

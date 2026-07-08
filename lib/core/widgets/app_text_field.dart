@@ -48,15 +48,26 @@ class AppTextField extends StatelessWidget {
         style: const TextStyle(fontSize: 15, color: AppColors.textPrimary),
         decoration: InputDecoration(
           hintText: hint,
-          labelText: labelText,
-          hintStyle: const TextStyle(color: AppColors.textHint, fontSize: 14),
-          labelStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-          prefixIcon: Icon(prefixIcon, color: AppColors.primary, size: 20),
-          suffixIcon: suffixIcon,
-          border: InputBorder.none,
+          hintStyle: const TextStyle(
+            color: AppColors.textHint,
+            fontSize: 14,
+          ),
+
+          isDense: true,
+
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+
+          prefixIcon: Icon(prefixIcon),
+          suffixIcon: suffixIcon,
+          labelText: labelText,
+
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
         ),
-      ),
+        ),
     );
   }
 }

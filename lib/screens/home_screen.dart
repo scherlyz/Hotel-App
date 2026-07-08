@@ -387,25 +387,39 @@ class _HomeScreenState extends State<HomeScreen> {
                             color: AppColors.primary, size: 22),
                       ),
                       const SizedBox(width: 10),
-                      Expanded(
-                        child: TextField(
-                          controller: _searchCtrl,
-                          onChanged: (_) => _filterPlaces(),
-                          textAlignVertical: TextAlignVertical.center,
-                          style: const TextStyle(
+                   Expanded(
+                        child: Theme(
+                          data: Theme.of(context).copyWith(
+                            inputDecorationTheme: const InputDecorationTheme(
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                            ),
+                          ),
+                          child: TextField(
+                            controller: _searchCtrl,
+                            onChanged: (_) => _filterPlaces(),
+                            cursorColor: AppColors.primary,
+                            style: const TextStyle(
                               fontSize: 15,
                               color: AppColors.textPrimary,
-                              height: 1.0),
-                          decoration: const InputDecoration(
-                            isCollapsed: true,
-                            isDense: true,
-                            contentPadding: EdgeInsets.zero,
-                            hintText: 'Search places or hotels...',
-                            hintStyle: TextStyle(
+                            ),
+                            decoration: const InputDecoration(
+                              hintText: 'Search places or hotels...',
+                              hintStyle: TextStyle(
                                 color: AppColors.textHint,
                                 fontSize: 14,
-                                height: 1.0),
-                            border: InputBorder.none,
+                              ),
+                              isDense: true,
+                              contentPadding: EdgeInsets.symmetric(vertical: 14),
+                              border: InputBorder.none,
+                              enabledBorder: InputBorder.none,
+                              focusedBorder: InputBorder.none,
+                              disabledBorder: InputBorder.none,
+                              errorBorder: InputBorder.none,
+                            ),
                           ),
                         ),
                       ),

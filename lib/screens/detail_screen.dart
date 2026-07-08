@@ -95,6 +95,20 @@ class _DetailScreenState extends State<DetailScreen> {
       _loadRecommended(_place!.category);
     }
   }
+  
+      Future<void> _refreshReviews() async {
+      final result = await ApiService.getReviews(widget.placeId);
+
+      if (!mounted) return;
+
+      if (result['status'] == 'ok') {
+        final List data = result['data'] ?? [];
+
+        setState(() {
+          _reviews = data.map((e) => Review.fromJson(e)).toList();
+        });
+      }
+    }
 
   // ─── Rekomendasi hotel serupa (kategori sama, exclude hotel ini sendiri) ───
   Future<void> _loadRecommended(String category) async {
@@ -192,36 +206,91 @@ class _DetailScreenState extends State<DetailScreen> {
         ),
       );
     }
-  }
+      }
+    Future<void> _refreshReviewsSilently() async {
+      final result = await ApiService.getReviews(widget.placeId);
 
-  Future<void> _submitReview() async {
-    if (_commentCtrl.text.trim().isEmpty) return;
-    setState(() => _isSubmittingReview = true);
+      if (!mounted) return;
 
-    final result = await ApiService.addReview(
-      widget.placeId,
-      widget.username,
-      _myRating,
-      _commentCtrl.text.trim(),
-    );
+      if (result['status'] == 'ok') {
+        final List data = result['data'] ?? [];
 
-    setState(() => _isSubmittingReview = false);
-    if (!mounted) return;
+        final latest =
+            data.map((e) => Review.fromJson(e)).toList();
 
-    if (result['status'] == 'ok') {
-      _commentCtrl.clear();
-      Navigator.pop(context);
-      _loadDetail();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Review berhasil dikirim!'),
-          backgroundColor: AppColors.primary,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+        // Jangan timpa review lokal kalau server masih mengembalikan
+        // data yang lebih sedikit (misalnya karena cache proxy).
+        if (latest.length >= _reviews.length) {
+          setState(() {
+            _reviews = latest;
+          });
+        }
+      }
     }
-  }
+
+    Future<void> _submitReview() async {
+      if (_commentCtrl.text.trim().isEmpty) return;
+
+      setState(() => _isSubmittingReview = true);
+
+      final comment = _commentCtrl.text.trim();
+
+      final result = await ApiService.addReview(
+        widget.placeId,
+        widget.username,
+        _myRating,
+        comment,
+      );
+
+      setState(() => _isSubmittingReview = false);
+
+      if (!mounted) return;
+
+      if (result['status'] == 'ok') {
+
+        // Tambahkan review langsung ke UI
+        final review = Review(
+          placeId: widget.placeId,
+          username: widget.username,
+          rating: _myRating,
+          comment: comment,
+          createdAt: DateTime.now().toIso8601String(),
+        );
+
+        setState(() {
+          _reviews.insert(0, review);
+        });
+
+        _commentCtrl.clear();
+
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Review berhasil dikirim!'),
+            backgroundColor: AppColors.primary,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+
+        // Sinkronisasi data di belakang layar
+        _refreshReviewsSilently();
+
+      } else {
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result['message'] ?? 'Gagal mengirim review',
+            ),
+            backgroundColor: Colors.red,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+
+      }
+    }
 
   void _showReviewSheet() {
     showModalBottomSheet(

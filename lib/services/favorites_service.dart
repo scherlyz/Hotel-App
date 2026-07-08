@@ -82,8 +82,7 @@ class FavoritesService extends ChangeNotifier {
 
     try {
       final result = await ApiService.toggleFavorite(placeId, username);
-      final success =
-          result['status'] == 'ok' || result.containsKey('favorited');
+      final success = result['status'] == 'ok';
 
       if (success && result.containsKey('favorited')) {
         final favorited = result['favorited'] == true;

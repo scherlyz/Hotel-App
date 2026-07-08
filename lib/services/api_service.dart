@@ -200,7 +200,13 @@ class ApiService {
       });
 
   static Future<Map<String, dynamic>> getReviews(int placeId) =>
-      postRequest('get_reviews', {'place_id': placeId});
+      postRequest(
+        'get_reviews',
+        {
+          'place_id': placeId,
+          '_t': DateTime.now().millisecondsSinceEpoch,
+        },
+      );
 
   static Future<Map<String, dynamic>> getUserReviews(String username) =>
       postRequest('get_user_reviews', {'username': username});
