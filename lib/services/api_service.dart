@@ -21,6 +21,13 @@ class ApiService {
     return url;
   }
 
+  // Nilai unik per request. PENTING: ini harus masuk ke URL/query string,
+  // BUKAN ke body — cache di proxy/CDN (corsproxy.io) itu key-nya URL,
+  // isi body tidak diperhitungkan. Menaruh cache-buster di body (seperti
+  // sebelumnya di getReviews/getFavorites) tidak berpengaruh sama sekali
+  // karena URL-nya tetap identik untuk setiap request ke path yang sama.
+  static String _cacheBuster() =>
+      '${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(999999)}';
 
   // ─── Parse Response Body ─────────────────────────────────
   static Map<String, dynamic> _parseBody(String body) {
@@ -31,6 +38,11 @@ class ApiService {
     // HTML response (GAS redirect expired) — anggap sukses
     return {'status': 'ok', 'message': 'Operasi berhasil'};
   }
+
+  static const Map<String, String> _noCacheHeaders = {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+  };
 
   // ─── GET Request ─────────────────────────────────────────
   static Future<Map<String, dynamic>> getRequest(
@@ -45,13 +57,20 @@ class ApiService {
       }
 
       try {
-        final gasUri = Uri.parse(_gasUrl).replace(queryParameters: params);
+        // _t ditaruh di query string (URL), bukan di body — ini titik
+        // krusialnya. Setiap request otomatis punya URL yang unik.
+        final paramsWithBuster = {
+          ...params,
+          '_t': _cacheBuster(),
+        };
+        final gasUri =
+            Uri.parse(_gasUrl).replace(queryParameters: paramsWithBuster);
 
         if (kIsWeb) {
           // Web: lewat proxy untuk bypass CORS
           final proxyUri = Uri.parse('$_proxyUrl${Uri.encodeComponent(gasUri.toString())}');
           final response = await http
-              .get(proxyUri)
+              .get(proxyUri, headers: _noCacheHeaders)
               .timeout(Duration(seconds: _timeoutSeconds));
           print('WEB GET response: ${response.body}');
           return _parseBody(response.body);
@@ -60,7 +79,8 @@ class ApiService {
           final client = http.Client();
           try {
             final request = http.Request('GET', gasUri)
-              ..followRedirects = false;
+              ..followRedirects = false
+              ..headers.addAll(_noCacheHeaders);
             final streamed = await client
                 .send(request)
                 .timeout(Duration(seconds: _timeoutSeconds));
@@ -68,7 +88,7 @@ class ApiService {
             final redirectUrl = streamed.headers['location'];
             if (redirectUrl != null) {
               final redirectResponse = await http
-                  .get(Uri.parse(redirectUrl))
+                  .get(Uri.parse(redirectUrl), headers: _noCacheHeaders)
                   .timeout(Duration(seconds: _timeoutSeconds));
               print('GET Redirect response: ${redirectResponse.body}');
               return _parseBody(redirectResponse.body);
@@ -103,7 +123,13 @@ class ApiService {
       }
 
       try {
-        final gasUri = Uri.parse('$_gasUrl?path=$path');
+        // Sebelumnya URL POST cuma "?path=$path" — SAMA PERSIS untuk
+        // setiap request ke path yang sama (mis. semua get_reviews,
+        // apa pun place_id-nya). Proxy/CDN yang cache berdasarkan URL
+        // akan menganggap semua itu "request yang sama". Menambahkan
+        // _t di sini (URL), bukan di body, memaksa URL selalu unik.
+        final gasUri =
+            Uri.parse('$_gasUrl?path=$path&_t=${_cacheBuster()}');
 
         if (kIsWeb) {
           // Web: lewat proxy untuk bypass CORS
@@ -111,7 +137,10 @@ class ApiService {
           final response = await http
               .post(
                 proxyUri,
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                  'Content-Type': 'application/json',
+                  ..._noCacheHeaders,
+                },
                 body: jsonEncode(body),
               )
               .timeout(Duration(seconds: _timeoutSeconds));
@@ -123,6 +152,7 @@ class ApiService {
           try {
             final request = http.Request('POST', gasUri)
               ..headers['Content-Type'] = 'application/json'
+              ..headers.addAll(_noCacheHeaders)
               ..followRedirects = false
               ..body = jsonEncode(body);
 
@@ -133,7 +163,7 @@ class ApiService {
             final redirectUrl = streamed.headers['location'];
             if (redirectUrl != null) {
               final redirectResponse = await http
-                  .get(Uri.parse(redirectUrl))
+                  .get(Uri.parse(redirectUrl), headers: _noCacheHeaders)
                   .timeout(Duration(seconds: _timeoutSeconds));
               print('POST Redirect response: ${redirectResponse.body}');
               return _parseBody(redirectResponse.body);
@@ -199,14 +229,11 @@ class ApiService {
         'comment': comment,
       });
 
+  // Cache-buster sudah otomatis ditangani di dalam postRequest() lewat
+  // URL — jadi endpoint-endpoint di bawah ini tidak perlu lagi menambah
+  // '_t' manual ke body seperti sebelumnya.
   static Future<Map<String, dynamic>> getReviews(int placeId) =>
-      postRequest(
-        'get_reviews',
-        {
-          'place_id': placeId,
-          '_t': DateTime.now().millisecondsSinceEpoch,
-        },
-      );
+      postRequest('get_reviews', {'place_id': placeId});
 
   static Future<Map<String, dynamic>> getUserReviews(String username) =>
       postRequest('get_user_reviews', {'username': username});
@@ -218,19 +245,6 @@ class ApiService {
         'username': username,
       });
 
-static Future<Map<String, dynamic>> getFavorites(
-    String username) async {
-
-  return postRequest(
-    'get_favorites',
-    {
-      'username': username,
-
-      /// cache buster
-      '_t': DateTime.now().millisecondsSinceEpoch,
-    },
-  );
-}
-
-  
+  static Future<Map<String, dynamic>> getFavorites(String username) =>
+      postRequest('get_favorites', {'username': username});
 }

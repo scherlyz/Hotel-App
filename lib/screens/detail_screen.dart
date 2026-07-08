@@ -95,20 +95,55 @@ class _DetailScreenState extends State<DetailScreen> {
       _loadRecommended(_place!.category);
     }
   }
-  
-      Future<void> _refreshReviews() async {
-      final result = await ApiService.getReviews(widget.placeId);
 
-      if (!mounted) return;
+  // Bikin salinan Place dengan rating baru — dipakai buat update tampilan
+  // rating rata-rata secara lokal begitu ada review baru, tanpa nunggu
+  // server menghitung ulang & kita fetch lagi.
+  Place _placeWithRating(Place p, double newRating) {
+    return Place(
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      address: p.address,
+      lat: p.lat,
+      lng: p.lng,
+      description: p.description,
+      photoUrl: p.photoUrl,
+      phone: p.phone,
+      website: p.website,
+      workingHours: p.workingHours,
+      priceMin: p.priceMin,
+      priceMax: p.priceMax,
+      stars: p.stars,
+      rating: newRating,
+    );
+  }
 
-      if (result['status'] == 'ok') {
-        final List data = result['data'] ?? [];
+  Future<void> _refreshReviewsSilently() async {
+    final result = await ApiService.getReviews(widget.placeId);
 
+    if (!mounted) return;
+
+    if (result['status'] == 'ok') {
+      final List data = result['data'] ?? [];
+
+      final latest = data.map((e) => Review.fromJson(e)).toList();
+
+      // Jangan timpa review lokal kalau server masih mengembalikan
+      // data yang lebih sedikit (misalnya karena cache proxy).
+      if (latest.length >= _reviews.length) {
         setState(() {
-          _reviews = data.map((e) => Review.fromJson(e)).toList();
+          _reviews = latest;
+          if (_place != null && latest.isNotEmpty) {
+            final avg =
+                latest.map((r) => r.rating).reduce((a, b) => a + b) /
+                    latest.length;
+            _place = _placeWithRating(_place!, avg);
+          }
         });
       }
     }
+  }
 
   // ─── Rekomendasi hotel serupa (kategori sama, exclude hotel ini sendiri) ───
   Future<void> _loadRecommended(String category) async {
@@ -206,91 +241,76 @@ class _DetailScreenState extends State<DetailScreen> {
         ),
       );
     }
-      }
-    Future<void> _refreshReviewsSilently() async {
-      final result = await ApiService.getReviews(widget.placeId);
+  }
 
-      if (!mounted) return;
+  Future<void> _submitReview() async {
+    if (_commentCtrl.text.trim().isEmpty) return;
 
-      if (result['status'] == 'ok') {
-        final List data = result['data'] ?? [];
+    setState(() => _isSubmittingReview = true);
 
-        final latest =
-            data.map((e) => Review.fromJson(e)).toList();
+    final comment = _commentCtrl.text.trim();
 
-        // Jangan timpa review lokal kalau server masih mengembalikan
-        // data yang lebih sedikit (misalnya karena cache proxy).
-        if (latest.length >= _reviews.length) {
-          setState(() {
-            _reviews = latest;
-          });
-        }
-      }
-    }
+    final result = await ApiService.addReview(
+      widget.placeId,
+      widget.username,
+      _myRating,
+      comment,
+    );
 
-    Future<void> _submitReview() async {
-      if (_commentCtrl.text.trim().isEmpty) return;
+    setState(() => _isSubmittingReview = false);
 
-      setState(() => _isSubmittingReview = true);
+    if (!mounted) return;
 
-      final comment = _commentCtrl.text.trim();
-
-      final result = await ApiService.addReview(
-        widget.placeId,
-        widget.username,
-        _myRating,
-        comment,
+    if (result['status'] == 'ok') {
+      // Tambahkan review langsung ke UI
+      final review = Review(
+        placeId: widget.placeId,
+        username: widget.username,
+        rating: _myRating,
+        comment: comment,
+        createdAt: DateTime.now().toIso8601String(),
       );
 
-      setState(() => _isSubmittingReview = false);
+      setState(() {
+        _reviews.insert(0, review);
 
-      if (!mounted) return;
+        // Hitung ulang rating rata-rata secara lokal, supaya langsung
+        // update — sebelumnya place.rating tidak pernah disentuh lagi
+        // setelah review baru masuk, jadi kelihatan tetap 0.0/basi.
+        if (_place != null) {
+          final avg = _reviews.map((r) => r.rating).reduce((a, b) => a + b) /
+              _reviews.length;
+          _place = _placeWithRating(_place!, avg);
+        }
+      });
 
-      if (result['status'] == 'ok') {
+      _commentCtrl.clear();
 
-        // Tambahkan review langsung ke UI
-        final review = Review(
-          placeId: widget.placeId,
-          username: widget.username,
-          rating: _myRating,
-          comment: comment,
-          createdAt: DateTime.now().toIso8601String(),
-        );
+      Navigator.pop(context);
 
-        setState(() {
-          _reviews.insert(0, review);
-        });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Review berhasil dikirim!'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+        ),
+      );
 
-        _commentCtrl.clear();
-
-        Navigator.pop(context);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Review berhasil dikirim!'),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
+      // Sinkronisasi data di belakang layar
+      _refreshReviewsSilently();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            result['message'] ?? 'Gagal mengirim review',
           ),
-        );
-
-        // Sinkronisasi data di belakang layar
-        _refreshReviewsSilently();
-
-      } else {
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              result['message'] ?? 'Gagal mengirim review',
-            ),
-            backgroundColor: Colors.red,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-
-      }
+          backgroundColor: Colors.red,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
     }
+  }
 
   void _showReviewSheet() {
     showModalBottomSheet(

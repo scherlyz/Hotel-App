@@ -17,6 +17,9 @@ class _AdminScreenState extends State<AdminScreen> {
   final _searchCtrl = TextEditingController();
   String _searchQuery = '';
 
+  int _tempIdCounter = -1;
+  int _nextTempId() => _tempIdCounter--;
+
   List<Place> get _filteredPlaces {
     if (_searchQuery.isEmpty) return _places;
     final q = _searchQuery.toLowerCase();
@@ -62,6 +65,28 @@ class _AdminScreenState extends State<AdminScreen> {
     }
   }
 
+  // Sinkronisasi diam-diam di belakang layar (dipakai setelah Tambah, untuk
+  // dapetin id asli yang di-generate backend). Sengaja TIDAK pernah
+  // mengurangi jumlah data yang sudah tampil di UI — kalau response server
+  // ternyata masih basi/cache (jumlahnya lebih sedikit dari yang sudah ada),
+  // kita abaikan supaya data yang baru saja ditambahkan tidak hilang lagi.
+  Future<void> _reconcileWithServer() async {
+    final currentCount = _places.length;
+    try {
+      final result = await ApiService.getAllPlaces();
+      if (!mounted) return;
+      if (result['status'] == 'ok') {
+        final List data = result['data'] ?? [];
+        final fresh = data.map((e) => Place.fromJson(e)).toList();
+        if (fresh.length >= currentCount) {
+          setState(() => _places = fresh);
+        }
+      }
+    } catch (_) {
+      // Diamkan — data lokal (optimistic) tetap dipakai.
+    }
+  }
+
   Future<void> _deletePlace(Place place) async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -85,6 +110,11 @@ class _AdminScreenState extends State<AdminScreen> {
     );
     if (confirm != true) return;
 
+    // Optimistic: hilangkan dari UI dulu, kembalikan lagi kalau gagal.
+    final removedIndex = _places.indexWhere((p) => p.id == place.id);
+    if (removedIndex == -1) return;
+    setState(() => _places.removeAt(removedIndex));
+
     try {
       final result = await ApiService.postRequest('delete_place', {'id': place.id});
       if (!mounted) return;
@@ -97,14 +127,16 @@ class _AdminScreenState extends State<AdminScreen> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         );
-        _loadPlaces();
       } else {
+        // Gagal — kembalikan ke posisi semula.
+        setState(() => _places.insert(removedIndex, place));
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(result['message'] ?? 'Gagal menghapus'), backgroundColor: const Color(0xFFDC2626)),
         );
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _places.insert(removedIndex, place));
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFFDC2626)));
       }
     }
@@ -123,52 +155,45 @@ Future<void> _showFormDialog({Place? place}) async {
 
   if (result == null) return;
 
-  if (place == null) {
-
-    await _loadPlaces();
-
-    return;
-  }
-
-  setState(() {
-
-    final index =
-        _places.indexWhere(
-      (e) => e.id == place.id,
-    );
-
-    if (index == -1) return;
-
-    _places[index] = Place(
-      id: place.id,
-      name: result['name'],
-      category: result['category'],
-      address: result['address'],
-      lat: double.tryParse(result['lat']) ?? 0,
-      lng: double.tryParse(result['lng']) ?? 0,
-      description: result['description'],
-      photoUrl: result['photo_url'],
-      phone: result['phone'],
-      website: result['website'],
-      workingHours: result['working_hours'],
-      priceMin:
-          int.tryParse(result['price_min']) ?? 0,
-      priceMax:
-          int.tryParse(result['price_max']) ?? 0,
-      stars:
-          int.tryParse(result['stars']) ?? 0,
-      rating:
-          double.tryParse(result['rating']) ?? 0,
-    );
-
-  });
-
-
-  // sinkronisasi di belakang layar
-  Future.delayed(
-    const Duration(seconds: 1),
-    _loadPlaces,
+  final newPlace = Place(
+    id: place?.id ??
+        (int.tryParse(result['id']?.toString() ?? '') ?? _nextTempId()),
+    name: result['name']?.toString() ?? '',
+    category: result['category']?.toString() ?? '',
+    address: result['address']?.toString() ?? '',
+    lat: double.tryParse(result['lat']?.toString() ?? '') ?? 0,
+    lng: double.tryParse(result['lng']?.toString() ?? '') ?? 0,
+    description: result['description']?.toString() ?? '',
+    photoUrl: result['photo_url']?.toString() ?? '',
+    phone: result['phone']?.toString() ?? '',
+    website: result['website']?.toString() ?? '',
+    workingHours: result['working_hours']?.toString() ?? '',
+    priceMin: int.tryParse(result['price_min']?.toString() ?? '') ?? 0,
+    priceMax: int.tryParse(result['price_max']?.toString() ?? '') ?? 0,
+    stars: int.tryParse(result['stars']?.toString() ?? '') ?? 0,
+    rating: double.tryParse(result['rating']?.toString() ?? '') ?? 0,
   );
+
+  if (place == null) {
+    // ─── Tambah ─── optimistic: langsung tampil di paling atas list,
+    // tanpa nunggu reload.
+    setState(() => _places = [newPlace, ..._places]);
+
+    // Sinkron ulang di belakang layar buat dapetin id asli dari server
+    // (waktu nambah, id yang di-generate backend belum kita tahu).
+    // Dijaga di _reconcileWithServer supaya response basi/cache tidak
+    // menghapus balik hotel yang baru ditambahkan.
+    _reconcileWithServer();
+  } else {
+    // ─── Edit ─── optimistic: update entri yang sudah ada di posisinya.
+    // Sengaja TIDAK memicu reload otomatis lagi setelah ini — data lokal
+    // sudah benar, dan reload di belakang layar berisiko menimpa balik
+    // hasil edit dengan response yang masih basi/cache.
+    setState(() {
+      final index = _places.indexWhere((e) => e.id == place.id);
+      if (index != -1) _places[index] = newPlace;
+    });
+  }
 }
 
   // ─── Tombol bulat untuk back ──────────────────────────────────────────
@@ -750,7 +775,24 @@ class _PlaceFormDialogState extends State<_PlaceFormDialog> {
       if (!mounted) return;
       
 if (result['status'] == 'ok') {
-  Navigator.pop(context, body);
+  // Server response CUMA dipakai buat ambil id (perlu buat data baru
+  // yang id-nya di-generate backend). Field lain (termasuk rating) TETAP
+  // pakai nilai form yang kamu isi sendiri — supaya tidak ke-overwrite
+  // jadi kosong/0 kalau response backend-nya tidak lengkap.
+  final merged = <String, dynamic>{...body};
+  final serverData = result['data'];
+  String? serverId;
+  if (serverData is Map) {
+    serverId = serverData['id']?.toString() ??
+        serverData['ID']?.toString() ??
+        serverData['place_id']?.toString();
+  }
+  serverId ??= result['id']?.toString();
+  if (serverId != null && serverId.isNotEmpty) {
+    merged['id'] = serverId;
+  }
+
+  Navigator.pop(context, merged);
 
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
